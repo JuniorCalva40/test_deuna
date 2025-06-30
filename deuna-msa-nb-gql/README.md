@@ -1,27 +1,33 @@
-# deuna-msa-ng-gql
+# deuna-msa-nb-gql
 
 Este microservicio funciona de BFF (Backend for Frontend) de los componentes del producto de CNBs.
 Contiene los siguientes servicios para la App de Comercios:
-- Onboarding para nuevos usuarios, incluyendo estado del proces de onboarding, firma de contratos, confirmación de datos, aceptación de facturación y consulta de estado.
+- Onboarding para nuevos usuarios: 
+  - Proceso de onboarding
+  - Firma de contratos
+  - Confirmación de datos
+  - Aceptacion de facturacion Electronica.
 - Depositos
+  - Deposito a cuenta
+  - Deposito con codigo QR
 - Retiros
 
-## Tabla de Contenidos
+## Contenido
 
-- [Estructura del Proyecto](#estructura-del-proyecto)
+- [Estructura del microservicio](#estructura-del-microservicio)
 - [Tecnologías Utilizadas](#tecnologías-utilizadas)
-- [Configuración del Proyecto](#configuración-del-proyecto)
-- [Pruebas Unitarias](#pruebas-unitarias)
-  - [Pruebas de Servicios](#pruebas-de-servicios)
-  - [Pruebas de Resolvers GraphQL](#pruebas-de-resolvers-graphql)
-  - [Pruebas de Providers](#pruebas-de-providers)
-- [Ejecutar las Pruebas](#ejecutar-las-pruebas)
+- [Configuracion del microservicio](#configuracion-del-microservicio)
+  - [Variables de Entorno](#variables-de-entorno)
+  - [Ejemplo de variables con proxy](#ejemplo-de-variables-con-proxy)
+- [Ejecucion del microservicio](#ejecucion-del-microservicio)
+  - [Usando contenedores](#usando-contenedores)
+  - [Usando Nodejs standalone](#usando-nodejs-standalone)
+- [Ejecucion de pruebas unitarias](#ejecucion-de-pruebas-unitarias)
 - [Cobertura de Código](#cobertura-de-código)
 - [Contribuir](#contribuir)
-- [CI/CD](#cicd)
 - [Documentación Adicional](#documentación-adicional)
 
-## Estructura del Proyecto
+## Estructura del microservicio
 
 El proyecto está organizado en los siguientes directorios principales:
 
@@ -37,135 +43,117 @@ El proyecto está organizado en los siguientes directorios principales:
 - Jest (para pruebas unitarias)
 - TypeScript
 
-## Configuración del Proyecto
+## Configuracion del microservicio
 
-1. Clone el repositorio:
-   ```
-   git clone https://dev.azure.com/Deuna/prd-cnb/_git/deuna-msa-nb-gql
-   ```
+### Variables de Entorno
 
-2. Instale las dependencias:
+| Nombre de la Variable                  | Valor por Defecto       | Valores Posibles                     | Descripción                                                   |
+|----------------------------------------|-------------------------|--------------------------------------|---------------------------------------------------------------|
+| NODE_ENV                               | 'development'           | 'local', 'development', 'production' | Entorno de ejecución de Node.js.                              |
+| AUTH_SERVICE_URL                       | 'http://localhost:4000' | URL                                  | URL del servicio de autenticación.                            |
+| ANONYMOUS_AUTH_SERVICE_URL             | 'http://localhost:4000' | URL                                  | URL del servicio de autenticación anónima.                    |
+| CLOUD_SERVICE_PROVIDER                 | 'aws'                   | 'none' o 'aws'                       | Identificacion del tipo de proveedor cloud que se esta usando |
+| HTTP_CLIENT_RETRY                      | 3                       | Número                               | Número de reintentos para el cliente HTTP.                    |
+| HTTP_CLIENT_TIMEOUT                    | 30000                   | Número (milisegundos)                | Tiempo de espera para el cliente HTTP.                        |
+| MSA_MC_BO_CLIENT_SERVICE_URL           | 'http://localhost:8080' | URL                                  | URL del servicio de backoffice client service                 |
+| MSA_CO_AUTH_SERVICE_TYPE               | 'rest'                  | 'rest', 'graphql'                    | Tipo de servicio de autenticación.                            |
+| MSA_CO_AUTH_URL                        | 'http://localhost:8080' | URL                                  | URL del servicio de autenticación.                            |
+| MSA_CO_CALIFICATION_SERVICE_TYPE       | 'http://localhost:8080' | URL                                  | Tipo de servicio de reglas de negocio.                        |
+| MSA_CO_CALIFICATION_URL                | 'http://localhost:8080' | URL                                  | URL del servicio de creacion de calificacion.                 |
+| MSA_CO_COMMERCE_SERVICE_TYPE           | 'rest'                  | 'rest', 'graphql'                    | Tipo de servicio de información de comercios.                 |
+| MSA_CO_COMMERCE_SERVICE_URL            | 'http://localhost:8080' | URL                                  | URL del servicio de información de comercios.                 |
+| MSA_CO_DOCUMENT_SERVICE_TYPE           | 'rest'                  | 'rest', 'graphql'                    | Tipo de servicio de generación de documentos.                 |
+| MSA_CO_DOCUMENT_URL                    | 'http://localhost:8080' | URL                                  | URL del servicio de generación de documentos.                 |
+| MSA_CO_INVOICE_SERVICE_TYPE            | 'mock'                  | 'mock', 'rest', 'graphql'            | Tipo de servicio de facturación.                              |
+| MSA_CO_INVOICE_API_URL                 | 'http://localhost:8081' | URL                                  | URL del servicio de facturación.                              |
+| MSA_CO_ONBOARDING_STATUS_SERVICE_TYPE  | 'rest'                  | 'rest', 'graphql'                    | Tipo de servicio para el estado de onboarding.                |
+| MSA_CO_ONBOARDING_STATUS_URL           | 'http://localhost:8080' | URL                                  | URL del servicio de estado de onboarding.                     |
+| BUSSINES_RULE_SERVICE_TYPE             | 'rest'                  | 'rest', 'graphql'                    | Tipo de servicio de reglas de negocio.                        |
+| MSA_NB_CONFIGURATION_SERVICE_TYPE      | 'rest'                  | 'rest', 'graphql'                    | Tipo de servicio para la configuración del cliente CNB.       |
+| MSA_NB_CONFIGURATION_URL               | 'http://localhost:8080' | URL                                  | URL del servicio de configuración del cliente CNB.            |
+| MSA_NB_CLIENT_SERVICE_TYPE             | 'rest'                  | 'rest', 'graphql'                    | Tipo de servicio del cliente CNB.                             |
+| MSA_NB_CLIENT_SERVICE_URL              | 'http://localhost:8080' | URL                                  | URL del servicio del cliente CNB.                             |
+| MSA_TL_NOTIFICATION_EMAIL_SERVICE_TYPE | 'rest'                  | 'rest', 'graphql'                    | Tipo de servicio de notificación por correo electrónico.      |
+| MSA_TL_OTP_SERVICE_URL                 | 'http://localhost:8080' | URL                                  | URL del servicio de OTP                                       |
+| MSA_TL_TEMPLATE_GENERATOR_SERVICE_TYPE | 'rest'                  | 'rest', 'graphql'                    | Tipo de servicio de generación de plantillas.                 |
+| MSA_TL_TEMPLATE_GENERATOR_URL          | 'http://localhost:8080' | URL                                  | URL del servicio de generación de plantillas.                 |
+| KAFKA_GROUP_ID                         | 'nb-gql'                | valor por defecto 'nb-gql'           | Nombre del Grupo especifico para el Producto CNB              |
+| KAFKA_URLS                             | 'localhost:9091'        | URL                                  | URLs del servidor Kafka.                                      |
+| KAFKA_SSL_ENABLED                      | 'false'                 | 'true', 'false'                      | Habilitar SSL para Kafka.                                     |
+| PRODUCT_SERVICE_TYPE                   | 'rest'                  | 'rest', 'graphql'                    | Tipo de protocolo de comunicacion con el servicio product.    |
+| PRODUCT_SERVICE_URL                    | 'http://localhost:4000' | URL                                  | URL del servicio de product.                                  |
+| SASL_USERNAME                          |                         | String                               | Nombre de usuario para SASL en Kafka.                         |
+| SASL_PASSWORD                          |                         | String                               | Contraseña para SASL en Kafka.                                |
+| SERVICE_NAME                           | 'msa-nb-gql'            | Nombre del microservicio             | Nombre del microservicio que se muestra en el logger          |
+| SERVICE_PORT                           | 80                      | Número de puerto                     | Puerto en el que se ejecuta el servidor.                      |
+| USER_SERVICE_TYPE                      | 'rest'                  | 'rest', 'graphql'                    | Tipo de protocolo de comunicacion con el servicio user.       |
+| USER_SERVICE_URL                       | 'http://localhost:4000' | URL                                  | URL del servicio de usuarios.                                 |
+
+### Ejemplo de variables con proxy
+
+| Variable                          | Valor                                                                                        |
+|-----------------------------------|----------------------------------------------------------------------------------------------|
+| MSA_CO_AUTH_URL                   | 'http://localhost:8080/proxy/deuna-msa-co-auth.commerces.svc.cluster.local'                  |
+| MSA_CO_CALIFICATION_URL           | 'http://localhost:8080/proxy/deuna-msa-co-calification.svc.cluster.local'                    |
+| MSA_CO_COMMERCE_SERVICE_URL       | 'http://localhost:8080/proxy/deuna-msa-co-commerce.commerces.svc.cluster.local'              |
+| MSA_CO_DOCUMENT_URL               | 'http://localhost:8080/proxy/deuna-msa-co-document.commerces.svc.cluster.local'              |
+| MSA_CO_ONBOARDING_STATUS_URL      | 'http://localhost:8080/proxy/deuna-msa-co-onboarding-status.commerces.svc.cluster.local'     |
+| MSA_CO_TRANSFER_ORCHESTRATION_URL | 'http://localhost:8080/proxy/deuna-msa-co-transfer-orchestation.commerces.svc.cluster.local' |
+| MSA_NB_CONFIGURATION_URL          | 'http://localhost:8080/proxy/deuna-msa-nb-configuration.cnb.svc.cluster.local'               |
+| MSA_NB_CLIENT_SERVICE_URL         | 'http://localhost:8080/proxy/deuna-msa-nb-client.cnb.svc.cluster.local/api/v1'               |
+| MSA_NB_ORQ_TRANSACTION_URL        | 'http://localhost:8080/proxy/deuna-msa-nb-orq-transaction.cnb.svc.cluster.local/api/v1'      |
+| MSA_TL_TEMPLATE_GENERATOR_URL     | 'http://localhost:8080/proxy/deuna-tl-template-generator.core.eks.local'                     |
+
+
+## Ejecucion del Microservicio
+
+### Usando contenedores
+
+```bash
+make build-dev
+make install-dependencies
+make launch-local
+```
+
+### Usando Nodejs standalone
+
+1. Instale las dependencias:
    ```
    npm install
    ```
 
-3. Configure las variables de entorno:
+2. Configure las variables de entorno:
    ```
    cp .env.example .env
    ```
    Edite el archivo `.env` con los valores apropiados para su entorno.
 
-4. Inicie el servidor de desarrollo:
+3. Inicie el servidor de desarrollo:
    ```
    npm run start:dev
    ```
 
-## Variables de Entorno
-
-| Nombre de la Variable                      | Valor por Defecto         | Valores Posibles          | Descripción                                                                 |
-|--------------------------------------------|---------------------------|---------------------------|-----------------------------------------------------------------------------|
-| ENVIRONMENT_VARIABLE                       | VALUE                     | VALUE                     | Variable de entorno genérica.                                               |
-| PORT                                       | 4001                      | Número de puerto          | Puerto en el que se ejecuta el servidor.                                    |
-| NODE_ENV                                   | 'local'                   | 'local', 'development', 'production' | Entorno de ejecución de Node.js.                                            |
-| AUTH_SERVICE_URL                           | 'http://localhost:4000'   | URL                       | URL del servicio de autenticación.                                          |
-| USER_SERVICE_TYPE                          | 'rest'                    | 'rest', 'graphql'         | Tipo de protocolo de comunicacion con el servicio user.                                          |
-| USER_SERVICE_URL                           | 'http://localhost:4000'   | URL                       | URL del servicio de usuarios.                                               |
-| PRODUCT_SERVICE_TYPE                       | 'rest'                    | 'rest', 'graphql'         | Tipo de protocolo de comunicacion con el servicio product.                                          |
-| PRODUCT_SERVICE_URL                        | 'http://localhost:4000'   | URL                       | URL del servicio de product.                                               |
-| ANONYMOUS_AUTH_SERVICE_URL                 | 'http://localhost:4000'   | URL                       | URL del servicio de autenticación anónima.                                  |
-| MSA_CO_ONBOARDING_STATUS_SERVICE_TYPE      | 'rest'                    | 'rest', 'graphql'         | Tipo de servicio para el estado de onboarding.                              |
-| MSA_CO_ONBOARDING_STATUS_URL               | 'http://localhost:8080'   | URL                       | URL del servicio de estado de onboarding.                                   |
-| MSA_NB_CONFIGURATION_SERVICE_TYPE          | 'rest'                    | 'rest', 'graphql'         | Tipo de servicio para la configuración del cliente CNB.                     |
-| MSA_NB_CONFIGURATION_URL                   | 'http://localhost:8080'   | URL                       | URL del servicio de configuración del cliente CNB.                          |
-| MSA_CO_AUTH_SERVICE_TYPE                   | 'rest'                    | 'rest', 'graphql'         | Tipo de servicio de autenticación.                                          |
-| MSA_CO_AUTH_URL                            | 'http://localhost:8080'   | URL                       | URL del servicio de autenticación.                                          |
-| MSA_CO_INVOICE_SERVICE_TYPE                | 'mock'                    | 'mock', 'rest', 'graphql' | Tipo de servicio de facturación.                                            |
-| MSA_CO_INVOICE_API_URL                     | 'http://localhost:8081'   | URL                       | URL del servicio de facturación.                                            |
-| MSA_NB_CLIENT_SERVICE_TYPE                 | 'rest'                    | 'rest', 'graphql'         | Tipo de servicio del cliente CNB.                                           |
-| MSA_NB_CLIENT_SERVICE_URL                  | 'http://localhost:8080'   | URL                       | URL del servicio del cliente CNB.                                           |
-| MSA_CO_COMMERCE_SERVICE_TYPE               | 'rest'                    | 'rest', 'graphql'         | Tipo de servicio de información de comercios.                               |
-| MSA_CO_COMMERCE_SERVICE_URL                | 'http://localhost:8080'   | URL                       | URL del servicio de información de comercios.                               |
-| BUSSINES_RULE_SERVICE_TYPE                 | 'rest'                    | 'rest', 'graphql'         | Tipo de servicio de reglas de negocio.                                      |
-| MSA_TL_NOTIFICATION_EMAIL_SERVICE_TYPE     | 'rest'                    | 'rest', 'graphql'         | Tipo de servicio de notificación por correo electrónico.                    |
-| MSA_TL_TEMPLATE_GENERATOR_SERVICE_TYPE     | 'rest'                    | 'rest', 'graphql'         | Tipo de servicio de generación de plantillas.                               |
-| MSA_TL_TEMPLATE_GENERATOR_URL              | 'http://localhost:8080'   | URL                       | URL del servicio de generación de plantillas.                               |
-| MSA_CO_DOCUMENT_SERVICE_TYPE               | 'rest'                    | 'rest', 'graphql'         | Tipo de servicio de generación de documentos.                               |
-| MSA_CO_DOCUMENT_URL                        | 'http://localhost:8080'   | URL                       | URL del servicio de generación de documentos.                               |
-| KAFKA_URLS                                 | 'localhost:9091'          | URL                       | URLs del servidor Kafka.                                                    |
-| KAFKA_SSL_ENABLED                          | 'false'                   | 'true', 'false'           | Habilitar SSL para Kafka.                                                   |
-| SASL_USERNAME                              |                           | String                    | Nombre de usuario para SASL en Kafka.                                       |
-| SASL_PASSWORD                              |                           | String                    | Contraseña para SASL en Kafka.                                              |
-| HTTP_CLIENT_RETRY                          | 3                         | Número                    | Número de reintentos para el cliente HTTP.                                  |
-| HTTP_CLIENT_TIMEOUT                        | 30000                     | Número (milisegundos)     | Tiempo de espera para el cliente HTTP.                                      |
-
-## Pruebas Unitarias
-
-Hemos implementado pruebas unitarias exhaustivas para los componentes críticos del sistema. Esto incluye:
-
-### Pruebas de Servicios
-
-Archivos de prueba para los siguientes servicios:
-
-1. StartOnboardingService
-2. SignContractService
-3. ConfirmDataService
-4. AcceptBillingService
-5. QueryOnboardingStatusService
-6. RestMsaCoOnboardingStatusService
-7. RestMsaCoAuthService
-8. RestMsaCoDocumentService
-9. ErrorHandler
-10. ClientsService (validate-cnb-state)
-
-### Pruebas de Resolvers GraphQL
-
-Archivos de prueba para los siguientes Resolvers:
-
-1. StartOnboardingResolver
-2. SignContractResolver
-3. ConfirmDataResolver
-4. AcceptBillingResolver
-5. QueryOnboardingStatusResolver
-6. ValidateCnbStateResolver
-
-### Pruebas de Providers
-
-Archivos de prueba para los siguientes Providers:
-
-1. msaCoAuthServiceProvider
-2. msaCoCommerceServiceProvider
-3. msaCoDocumentServiceProvider
-4. msaCoInvoiceServiceProvider
-5. msaNbClientServiceProvider
-6. msaNbConfigurationServiceProvider
-7. msaNbOnboardingStatusServiceProvider
-8. msaTlNotificationEmailServiceProvider
-9. msaTlTemplateGeneratorServiceProvider
-10. bussinesRuleServiceProvider
-
-## Ejecutar las Pruebas
+## Ejecucion de pruebas unitarias
 
 Para ejecutar todas las pruebas unitarias, use el siguiente comando:
 
-```
+```bash
 npm run test
 ```
 
 Para ejecutar las pruebas con cobertura:
 
-```
+```bash
 npm run test:cov
 ```
 
 Para ejecutar las pruebas en modo watch:
 
-```
+```bash
 npm run test:watch
 ```
 
 ## Cobertura de Código
-
-Nos esforzamos por mantener una cobertura de código de al menos 90% para todos los servicios críticos y Resolvers GraphQL. Puedes ver el informe de cobertura después de ejecutar las pruebas con cobertura.
 
 Para ver un informe detallado de la cobertura, abra el archivo `coverage/lcov-report/index.html` en su navegador después de ejecutar las pruebas con cobertura.
 
@@ -200,23 +188,12 @@ Para ver un informe detallado de la cobertura, abra el archivo `coverage/lcov-re
 
 8. Haga push de su rama y cree un Pull Request.
 
-## CI/CD
-
-Todas las pruebas se ejecutan automáticamente en nuestro pipeline de CI/CD. Asegúrese de que todas las pruebas pasen antes de fusionar cambios en la rama principal.
-
-El pipeline incluye los siguientes pasos:
-
-1. Instalación de dependencias
-2. Linting
-3. Ejecución de pruebas unitarias
-4. Generación de informe de cobertura
-5. Construcción del proyecto
-
 ## Documentación Adicional
 
 Para más información sobre el proyecto y sus componentes, consulte los siguientes recursos:
 
 - [Error manejando dependencias](./docs/issues_dependencies.md)
+- [Manejo de Errores](./docs/error-Handling-guide.md)
 - [Documentación de la API GraphQL](./docs/graphql-api.md)
 - [Guía de Desarrollo](./docs/development-guide.md)
 

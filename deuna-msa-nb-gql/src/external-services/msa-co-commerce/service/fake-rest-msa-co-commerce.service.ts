@@ -20,8 +20,8 @@ export class FakeRestMsaCoCommerceService implements IMsaCoCommerceService {
       map((apiData) => {
         // Simulate transforming API response
         const transformedData: CommerceResponseDto = {
-          comerceId: apiData.id,
-          companyName: 'XYZ Corporation',
+          id: apiData.id,
+          name: 'XYZ Corporation',
           ruc: {
             result: {
               addit: [
@@ -76,23 +76,6 @@ export class FakeRestMsaCoCommerceService implements IMsaCoCommerceService {
           principalContact: '1234567890',
           username: 'test-username',
           identification: input.identification,
-          establishment: [
-            {
-              fullAddress:
-                'PICHINCHA / QUITO / IÑAQUITO / JORGE DROM 9-14 Y AV. GASPAR DE VILLAROEL',
-              numberEstablishment: '001',
-            },
-            {
-              fullAddress:
-                'PICHINCHA / QUITO / IÑAQUITO / JORGE DROM 9-14 Y AV. GASPAR DE VILLAROEL',
-              numberEstablishment: '002',
-            },
-            {
-              fullAddress:
-                'PICHINCHA / QUITO / IÑAQUITO / JORGE DROM 9-14 Y AV. GASPAR DE VILLAROEL',
-              numberEstablishment: '003',
-            },
-          ],
         };
 
         return transformedData;

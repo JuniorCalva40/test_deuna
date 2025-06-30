@@ -8,7 +8,7 @@ export class FakeMsaTlNotificationEmailService
   implements IMsaTlNotificationEmailService
 {
   sendEmail(notification: EmailNotificationDto): Observable<void> {
-    console.log('Fake email sent:', notification);
+    console.log('Fake email sent for:', notification);
     return of(undefined);
   }
 }

@@ -9,7 +9,10 @@ import { RestMsaNbOrqTransactionService } from './services/rest-msa-nb-orq-trans
 
 @Module({
   imports: [HttpModule, ConfigModule],
-  providers: [msaNbOrqTransactionServiceProvider, RestMsaNbOrqTransactionService],
+  providers: [
+    msaNbOrqTransactionServiceProvider,
+    RestMsaNbOrqTransactionService,
+  ],
   exports: [MSA_NB_ORQ_TRANSACTION_SERVICE],
 })
 export class MsaNbOrqTransactionServiceModule {}

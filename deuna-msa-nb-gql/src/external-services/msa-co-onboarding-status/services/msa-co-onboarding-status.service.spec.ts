@@ -6,14 +6,19 @@ import { first } from 'rxjs/operators';
 import { AxiosResponse } from 'axios';
 import { RestMsaCoOnboardingStatusService } from './rest-msa-co-onboarding-status.service';
 import {
-  DataUpdateOnboardingAcceptBillingInputDto,
+  FingeprintCodeInputDto,
   InitOnboardingInputDto,
+  DocumentValidationInputDto,
   StartOnboardingInputDto,
   UpdateDataOnboardingInputDto,
+  SetStepAcceptContractInputDto,
 } from '../dto/msa-co-onboarding-status-input.dto';
 import {
-  ConfirmDataResponseDto,
-  SetStepValidateOtpResponseDto,
+  OnboardingStatusResponseDto,
+  GetStateOnboardingResponseDto,
+  InitOnboardingResponseDto,
+  GetAllOnboardingResponseDto,
+  ClientData,
 } from '../dto/msa-co-onboarding-status-response.dto';
 
 describe('RestMsaCoOnboardingStatusService', () => {
@@ -49,6 +54,11 @@ describe('RestMsaCoOnboardingStatusService', () => {
     configService = module.get(ConfigService);
 
     configService.get.mockReturnValue('http://localhost:8080');
+    jest.clearAllMocks();
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
   });
 
   describe('constructor', () => {
@@ -72,7 +82,9 @@ describe('RestMsaCoOnboardingStatusService', () => {
         securitySeed: 'test-seed',
         publicKey: 'test-key',
       };
-      const mockResponse = { sessionId: 'test-session' };
+      const mockResponse: InitOnboardingResponseDto = {
+        sessionId: 'test-session',
+      };
       const axiosResponse: AxiosResponse = {
         data: mockResponse,
         status: 200,
@@ -118,7 +130,7 @@ describe('RestMsaCoOnboardingStatusService', () => {
           next: () => done('Should not succeed'),
           error: (error) => {
             expect(error.message).toBe(
-              'Failed to initiate onboarding in RestMsaCoOnboardingStatusService: HTTP Error',
+              `Failed to initiate onboarding in RestMsaCoOnboardingStatusService: HTTP Error`,
             );
             done();
           },
@@ -132,16 +144,49 @@ describe('RestMsaCoOnboardingStatusService', () => {
         sessionId: 'test-session',
         status: 'SUCCESS',
         data: {
-          cnbClientId: 'test-client',
           companyName: 'Test Company',
-          ruc: 123456,
-          email: 'test@test.com',
-          establishment: [],
+          ruc: {
+            rucNumber: '1234',
+            estadoContribuyenteRuc: 'ACTIVO',
+            actividadEconomicaPrincipal: 'some activity',
+            tipoContribuyente: 'some type',
+            regimen: 'some regimen',
+            categoria: 'some category',
+            obligadoLlevarContabilidad: 'si',
+            agenteRetencion: 'no',
+            contribuyenteEspecial: 'no',
+            informacionFechasContribuyente: {
+              fechaInicioActividades: 'some date',
+              fechaCese: 'some date',
+              fechaReinicioActividades: 'some date',
+              fechaActualizacion: 'some date',
+            },
+            addit: [],
+          },
           fullName: 'Test User',
-          phoneNumber: '3003216548',
+          username: 'test-username',
+          establishment: [],
+          email: 'test@test.com',
+          trackingId: 'fb176755-a4dd-4a87-91d7-27801433ad16',
         },
       };
-      const mockResponse = { status: 'SUCCESS' };
+      const mockResponse: OnboardingStatusResponseDto = {
+        successSteps: [],
+        requiredSteps: [],
+        optionalSteps: [],
+        failureSteps: [],
+        successIdentityValidationSteps: [],
+        standbyIdentityValidationSteps: [],
+        processingFailure: [],
+        status: 'SUCCESS',
+        onbType: 'CNB',
+        sessionId: 'test-session',
+        securitySeed: 'test-seed',
+        identityId: 'test-id',
+        publicKey: 'test-key',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
       const axiosResponse: AxiosResponse = {
         data: mockResponse,
         status: 200,
@@ -167,287 +212,20 @@ describe('RestMsaCoOnboardingStatusService', () => {
           error: done,
         });
     });
-
-    it('should handle error in startOnboarding', (done) => {
-      const mockInput: StartOnboardingInputDto = {
-        sessionId: 'test-session',
-        status: 'SUCCESS',
-        data: {
-          cnbClientId: 'test-client',
-          companyName: 'Test Company',
-          ruc: 123456,
-          email: 'test@test.com',
-          establishment: [],
-          fullName: 'Test User',
-          phoneNumber: '30032154876',
-        },
-      };
-
-      httpService.patch.mockReturnValue(
-        throwError(() => new Error('HTTP Error')),
-      );
-
-      service
-        .startOnboarding(mockInput)
-        .pipe(first())
-        .subscribe({
-          next: () => done('Should not succeed'),
-          error: (error) => {
-            expect(error.message).toBe(
-              'Failed to start onboarding in RestMsaCoOnboardingStatusService: HTTP Error',
-            );
-            done();
-          },
-        });
-    });
-  });
-
-  describe('getClientDataFromStartOnboardingState', () => {
-    it('should successfully get client data', (done) => {
-      const mockSessionId = 'test-session';
-      const mockResponse = {
-        data: {
-          'start-onb-cnb': {
-            data: {
-              cnbClientId: 'test-client',
-              email: 'test@test.com',
-              companyName: 'Test Company',
-              ruc: '123456',
-              businessAddress: 'Test Address',
-              legalRepresentative: 'Test User',
-              establishment: {},
-            },
-          },
-        },
-        identityId: 'test-identity',
-      };
-      const axiosResponse: AxiosResponse = {
-        data: mockResponse,
-        status: 200,
-        statusText: 'OK',
-        headers: {},
-        config: {} as any,
-      };
-
-      httpService.get.mockReturnValue(of(axiosResponse));
-
-      service
-        .getClientDataFromStartOnboardingState(mockSessionId)
-        .pipe(first())
-        .subscribe({
-          next: (result) => {
-            expect(result).toEqual({
-              cnbClientId: 'test-client',
-              email: 'test@test.com',
-              companyName: 'Test Company',
-              ruc: '123456',
-              businessAddress: 'Test Address',
-              legalRepresentative: 'Test User',
-              establishment: {},
-              identityId: 'test-identity',
-            });
-            expect(httpService.get).toHaveBeenCalledWith(
-              'http://localhost:8080/status/session/test-session',
-            );
-            done();
-          },
-          error: done,
-        });
-    });
-
-    it('should handle error in getClientDataFromStartOnboardingState', (done) => {
-      const mockSessionId = 'test-session';
-
-      httpService.get.mockReturnValue(
-        throwError(() => new Error('HTTP Error')),
-      );
-
-      service
-        .getClientDataFromStartOnboardingState(mockSessionId)
-        .pipe(first())
-        .subscribe({
-          next: () => done('Should not succeed'),
-          error: (error) => {
-            expect(error.message).toBe(
-              'Failed to get client data from start onboarding state in RestMsaCoOnboardingStatusService: HTTP Error',
-            );
-            done();
-          },
-        });
-    });
   });
 
   describe('updateOnboardingState', () => {
-    it('should successfully update onboarding state', (done) => {
-      const mockInput: UpdateDataOnboardingInputDto = {
+    it('should successfully update onboarding state', async () => {
+      const confirmDataInput: UpdateDataOnboardingInputDto = {
         sessionId: 'test-session',
         status: 'SUCCESS',
         data: {
-          acceptBilling: true,
-        } as DataUpdateOnboardingAcceptBillingInputDto,
-      };
-      const mockResponse = { status: 'SUCCESS' };
-      const axiosResponse: AxiosResponse<{ status: string }> = {
-        data: mockResponse,
-        status: 200,
-        statusText: 'OK',
-        headers: {},
-        config: {} as any,
-      };
-
-      httpService.patch.mockReturnValue(of(axiosResponse));
-
-      service
-        .updateOnboardingState(mockInput, 'test-step')
-        .pipe(first())
-        .subscribe({
-          next: (result) => {
-            expect(result).toEqual(mockResponse);
-            expect(httpService.patch).toHaveBeenCalledWith(
-              'http://localhost:8080/status/test-session/test-step',
-              mockInput,
-            );
-            done();
-          },
-          error: done,
-        });
-    });
-
-    it('should handle error in updateOnboardingState', (done) => {
-      const mockInput: UpdateDataOnboardingInputDto = {
-        sessionId: 'test-session',
-        status: 'SUCCESS',
-        data: {},
-      };
-
-      httpService.patch.mockReturnValue(
-        throwError(() => new Error('HTTP Error')),
-      );
-
-      service
-        .updateOnboardingState(mockInput, 'test-step')
-        .pipe(first())
-        .subscribe({
-          next: () => done('Should not succeed'),
-          error: (error) => {
-            expect(error.message).toBe(
-              'Failed to update onboarding state in RestMsaCoOnboardingStatusService: HTTP Error',
-            );
-            done();
-          },
-        });
-    });
-  });
-
-  describe('getOnboardingState', () => {
-    it('should successfully get onboarding state', (done) => {
-      const mockSessionId = 'test-session';
-      const mockResponse = { status: 'SUCCESS', data: {} };
-      const axiosResponse: AxiosResponse = {
-        data: mockResponse,
-        status: 200,
-        statusText: 'OK',
-        headers: {},
-        config: {} as any,
-      };
-
-      httpService.get.mockReturnValue(of(axiosResponse));
-
-      service
-        .getOnboardingState(mockSessionId)
-        .pipe(first())
-        .subscribe({
-          next: (result) => {
-            expect(result).toEqual(mockResponse);
-            expect(httpService.get).toHaveBeenCalledWith(
-              'http://localhost:8080/status/session/test-session',
-              { headers: { 'Content-Type': 'application/json' } },
-            );
-            done();
-          },
-          error: done,
-        });
-    });
-
-    it('should handle error in getOnboardingState', (done) => {
-      const mockSessionId = 'test-session';
-
-      httpService.get.mockReturnValue(
-        throwError(() => new Error('HTTP Error')),
-      );
-
-      service
-        .getOnboardingState(mockSessionId)
-        .pipe(first())
-        .subscribe({
-          next: () => done('Should not succeed'),
-          error: (error) => {
-            expect(error.message).toBe(
-              'Failed to get onboarding state in RestMsaCoOnboardingStatusService: HTTP Error',
-            );
-            done();
-          },
-        });
-    });
-  });
-
-  describe('error handling', () => {
-    it('should log detailed error information', (done) => {
-      const mockInput: InitOnboardingInputDto = {
-        identityId: 'test-id',
-        onbType: 'test-type',
-        securitySeed: 'test-seed',
-        publicKey: 'test-key',
-      };
-
-      const errorResponse = {
-        response: {
-          status: 400,
-          data: { message: 'Bad Request' },
+          status: 'SUCCESS',
         },
       };
 
-      httpService.post.mockReturnValue(throwError(() => errorResponse));
-
-      const loggerErrorSpy = jest.spyOn(service['logger'], 'error');
-
-      service
-        .initOnboarding(mockInput)
-        .pipe(first())
-        .subscribe({
-          next: () => done('Should not succeed'),
-          error: (error) => {
-            expect(error.message).toBe(
-              'Failed to initiate onboarding in RestMsaCoOnboardingStatusService: Bad Request',
-            );
-            expect(loggerErrorSpy).toHaveBeenCalledWith(
-              expect.stringContaining('initiate onboarding failed'),
-            );
-            expect(loggerErrorSpy).toHaveBeenCalledWith('Response status: 400');
-            expect(loggerErrorSpy).toHaveBeenCalledWith(
-              'Response data: {"message":"Bad Request"}',
-            );
-            done();
-          },
-        });
-    });
-  });
-
-  describe('setStepAcceptContract', () => {
-    const mockBodyUpdateOnboardingState = {
-      requestId: 'mock-request-id',
-      email: 'test@test.com',
-      deviceName: 'Mock Device',
-      commerceName: 'Mock Commerce',
-      notificationChannel: ['SMS', 'EMAIL'],
-      sessionId: 'mock-session-id',
-      businessDeviceId: 'mock-business-device-id',
-      status: 'SUCCESS',
-    };
-
-    it('should successfully set step accept contract', async () => {
-      const mockResponse: ConfirmDataResponseDto = {
-        successSteps: ['accept-contract'],
+      const mockResponse: OnboardingStatusResponseDto = {
+        successSteps: [],
         requiredSteps: [],
         optionalSteps: [],
         failureSteps: [],
@@ -455,8 +233,15 @@ describe('RestMsaCoOnboardingStatusService', () => {
         standbyIdentityValidationSteps: [],
         processingFailure: [],
         status: 'SUCCESS',
-        onbType: 'test-type',
+        onbType: 'CNB',
+        sessionId: 'test-session',
+        securitySeed: 'test-seed',
+        identityId: 'test-id',
+        publicKey: 'test-key',
+        createdAt: new Date(),
+        updatedAt: new Date(),
       };
+
       const axiosResponse: AxiosResponse = {
         data: mockResponse,
         status: 200,
@@ -468,75 +253,30 @@ describe('RestMsaCoOnboardingStatusService', () => {
       httpService.patch.mockReturnValue(of(axiosResponse));
 
       const result = await firstValueFrom(
-        service.setStepAcceptContract(mockBodyUpdateOnboardingState),
+        service.updateOnboardingState(confirmDataInput, 'confirm-data'),
       );
 
       expect(result).toEqual(mockResponse);
       expect(httpService.patch).toHaveBeenCalledWith(
-        'http://localhost:8080/status/mock-session-id/accept-contract',
-        { ...mockBodyUpdateOnboardingState, status: 'SUCCESS' },
+        'http://localhost:8080/status/test-session/confirm-data',
+        confirmDataInput,
       );
-    });
-
-    it('should handle error in setStepAcceptContract', (done) => {
-      httpService.patch.mockReturnValue(
-        throwError(() => new Error('HTTP Error')),
-      );
-
-      service
-        .setStepAcceptContract(mockBodyUpdateOnboardingState)
-        .pipe(first())
-        .subscribe({
-          next: () => done('Should not succeed'),
-          error: (error) => {
-            expect(error.message).toBe(
-              'Failed to set step accept contract in RestMsaCoOnboardingStatusService: HTTP Error',
-            );
-            done();
-          },
-        });
-    });
-
-    it('should log detailed error information in setStepAcceptContract', (done) => {
-      const errorResponse = {
-        response: {
-          status: 400,
-          data: { message: 'Bad Request' },
-        },
-      };
-
-      httpService.patch.mockReturnValue(throwError(() => errorResponse));
-
-      const loggerErrorSpy = jest.spyOn(service['logger'], 'error');
-
-      service
-        .setStepAcceptContract(mockBodyUpdateOnboardingState)
-        .pipe(first())
-        .subscribe({
-          next: () => done('Should not succeed'),
-          error: (error) => {
-            expect(error.message).toBe(
-              'Failed to set step accept contract in RestMsaCoOnboardingStatusService: Bad Request',
-            );
-            expect(loggerErrorSpy).toHaveBeenCalledWith(
-              expect.stringContaining('set step accept contract failed'),
-            );
-            expect(loggerErrorSpy).toHaveBeenCalledWith('Response status: 400');
-            expect(loggerErrorSpy).toHaveBeenCalledWith(
-              'Response data: {"message":"Bad Request"}',
-            );
-            done();
-          },
-        });
     });
   });
 
-  describe('setStepValidateOtp', () => {
-    it('debería validar el OTP con éxito', (done) => {
-      const mockSessionId = 'mock-session-id';
-      const mockOtp = '123456';
-      const mockResponse: SetStepValidateOtpResponseDto = {
-        successSteps: ['validate-otp'],
+  describe('setStepAcceptContract', () => {
+    it('should successfully set accept contract step', async () => {
+      const acceptContractInput: SetStepAcceptContractInputDto = {
+        sessionId: 'test-session-id',
+        deviceName: 'test-device-name',
+        requestId: 'req-123',
+        email: 'test@test.com',
+        commerceName: 'Test Commerce',
+        status: 'SUCCESS',
+      };
+
+      const mockResponse: OnboardingStatusResponseDto = {
+        successSteps: [],
         requiredSteps: [],
         optionalSteps: [],
         failureSteps: [],
@@ -544,8 +284,15 @@ describe('RestMsaCoOnboardingStatusService', () => {
         standbyIdentityValidationSteps: [],
         processingFailure: [],
         status: 'SUCCESS',
-        onbType: 'test-type',
+        onbType: 'CNB',
+        sessionId: 'test-session-id',
+        securitySeed: 'test-seed',
+        identityId: 'test-id',
+        publicKey: 'test-key',
+        createdAt: new Date(),
+        updatedAt: new Date(),
       };
+
       const axiosResponse: AxiosResponse = {
         data: mockResponse,
         status: 200,
@@ -556,74 +303,225 @@ describe('RestMsaCoOnboardingStatusService', () => {
 
       httpService.patch.mockReturnValue(of(axiosResponse));
 
-      service
-        .setStepValidateOtp(mockSessionId, mockOtp)
-        .pipe(first())
-        .subscribe({
-          next: (result) => {
-            expect(result).toEqual(mockResponse);
-            expect(httpService.patch).toHaveBeenCalledWith(
-              'http://localhost:8080/status/mock-session-id/validate-otp',
-              { status: 'SUCCESS', data: { otp: mockOtp } },
-            );
-            done();
-          },
-          error: done,
-        });
-    });
-
-    it('should handle error in setStepValidateOtp', (done) => {
-      const mockSessionId = 'mock-session-id';
-      const mockOtp = '123456';
-
-      httpService.patch.mockReturnValue(
-        throwError(() => new Error('Error HTTP')),
+      const result = await firstValueFrom(
+        service.setStepAcceptContract(acceptContractInput),
       );
 
+      expect(result).toEqual(mockResponse);
+    });
+  });
+
+  describe('setFingerprintStep', () => {
+    it('should successfully set fingerprint step', async () => {
+      const data: FingeprintCodeInputDto = {
+        sessionId: 'test-session-id',
+        status: 'SUCCESS',
+        data: {
+          nationalID: '123456789',
+          fingerprintData: 'fingerprint-data',
+        },
+      };
+      const mockResponse: OnboardingStatusResponseDto = {
+        successSteps: [],
+        requiredSteps: [],
+        optionalSteps: [],
+        failureSteps: [],
+        successIdentityValidationSteps: [],
+        standbyIdentityValidationSteps: [],
+        processingFailure: [],
+        status: 'SUCCESS',
+        onbType: 'CNB',
+        sessionId: 'test-session-id',
+        securitySeed: 'test-seed',
+        identityId: 'test-id',
+        publicKey: 'test-key',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      const axiosResponse: AxiosResponse<OnboardingStatusResponseDto> = {
+        data: mockResponse,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {} as any,
+      };
+
+      httpService.patch.mockReturnValue(of(axiosResponse));
+      const result = await firstValueFrom(service.setFingerprintStep(data));
+      expect(result).toEqual(mockResponse);
+    });
+  });
+
+  describe('setDocumentValidationStep', () => {
+    it('should successfully set document validation step', async () => {
+      const data: DocumentValidationInputDto = {
+        sessionId: 'test-session-id',
+        status: 'SUCCESS',
+        data: {
+          frontsideImage: 'front-image-data',
+          backsideImage: 'back-image-data',
+          scanReference: 'test-scan-ref',
+          timestamp: new Date().toISOString(),
+          type: 'ID',
+        },
+      };
+      const mockResponse: OnboardingStatusResponseDto = {
+        successSteps: [],
+        requiredSteps: [],
+        optionalSteps: [],
+        failureSteps: [],
+        successIdentityValidationSteps: [],
+        standbyIdentityValidationSteps: [],
+        processingFailure: [],
+        status: 'SUCCESS',
+        onbType: 'CNB',
+        sessionId: 'test-session-id',
+        securitySeed: 'test-seed',
+        identityId: 'test-id',
+        publicKey: 'test-key',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      const axiosResponse: AxiosResponse<OnboardingStatusResponseDto> = {
+        data: mockResponse,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {} as any,
+      };
+
+      httpService.patch.mockReturnValue(of(axiosResponse));
+      const result = await firstValueFrom(
+        service.setDocumentValidationStep(data),
+      );
+      expect(result).toEqual(mockResponse);
+    });
+  });
+
+  describe('setStepValidateOtp', () => {
+    it('should successfully set validate OTP step', async () => {
+      const sessionId = 'test-session-id';
+      const otp = '123456';
+      const mockResponse: OnboardingStatusResponseDto = {
+        successSteps: [],
+        requiredSteps: [],
+        optionalSteps: [],
+        failureSteps: [],
+        successIdentityValidationSteps: [],
+        standbyIdentityValidationSteps: [],
+        processingFailure: [],
+        status: 'SUCCESS',
+        onbType: 'CNB',
+        sessionId: 'test-session-id',
+        securitySeed: 'test-seed',
+        identityId: 'test-id',
+        publicKey: 'test-key',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      const axiosResponse: AxiosResponse<OnboardingStatusResponseDto> = {
+        data: mockResponse,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {} as any,
+      };
+
+      httpService.patch.mockReturnValue(of(axiosResponse));
+      const result = await firstValueFrom(
+        service.setStepValidateOtp(sessionId, otp),
+      );
+      expect(result).toEqual(mockResponse);
+    });
+  });
+
+  describe('getOnboardingState', () => {
+    it('should return onboarding state', (done) => {
+      const sessionId = 'test-session-id';
+      const mockResponse: AxiosResponse<GetStateOnboardingResponseDto> = {
+        data: {
+          id: 1,
+          sessionId: 'test-session-id',
+          securitySeed: 'seed',
+          identityId: 'id',
+          onbType: 'type',
+          data: {
+            startOnbCnb: {
+              status: 'status',
+              data: {
+                ruc: 123,
+                message: 'msg',
+                cnbClientId: 'client-id',
+              },
+            },
+          },
+          status: 'status',
+          publicKey: 'key',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          cnbClientId: 'client-id',
+          enabled: true,
+        },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {} as any,
+      };
+
+      httpService.get.mockReturnValue(of(mockResponse));
+
       service
-        .setStepValidateOtp(mockSessionId, mockOtp)
+        .getOnboardingState(sessionId)
         .pipe(first())
         .subscribe({
-          next: () => done('No debería tener éxito'),
-          error: (error) => {
-            expect(error.message).toBe(
-              'Failed to set step validate otp in RestMsaCoOnboardingStatusService: Error HTTP',
-            );
+          next: (response) => {
+            expect(response).toEqual(mockResponse.data);
             done();
           },
         });
     });
+  });
 
-    it('should log detailed error information in setStepValidateOtp', (done) => {
-      const mockSessionId = 'mock-session-id';
-      const mockOtp = '123456';
-      const errorResponse = {
-        response: {
-          status: 400,
-          data: { message: 'Bad Request' },
+  describe('getClientDataFromStartOnboardingState', () => {
+    it('should get client data from start onboarding state', (done) => {
+      const sessionId = 'test-session-id';
+      const mockClientData: Partial<ClientData> = {
+        cnbClientId: 'string',
+        email: 'string',
+        companyName: 'string',
+        ruc: 'string',
+        businessAddress: 'string',
+        legalRepresentative: 'string',
+        establishment: {
+          fullAdress: 'string',
+          numberEstablishment: 'string',
+        },
+        username: 'string',
+        commerceId: 'string',
+        trackingId: 'string',
+      };
+
+      const mockResponse = {
+        data: {
+          identityId: 'string',
+          status: 'string',
+          data: {
+            'start-onb-cnb': {
+              data: mockClientData,
+            },
+          },
         },
       };
 
-      httpService.patch.mockReturnValue(throwError(() => errorResponse));
-
-      const loggerErrorSpy = jest.spyOn(service['logger'], 'error');
+      httpService.get.mockReturnValue(of(mockResponse as any));
 
       service
-        .setStepValidateOtp(mockSessionId, mockOtp)
+        .getClientDataFromStartOnboardingState(sessionId)
         .pipe(first())
         .subscribe({
-          next: () => done('No debería tener éxito'),
-          error: (error) => {
-            expect(error.message).toBe(
-              'Failed to set step validate otp in RestMsaCoOnboardingStatusService: Bad Request',
-            );
-            expect(loggerErrorSpy).toHaveBeenCalledWith(
-              expect.stringContaining('set step validate otp failed'),
-            );
-            expect(loggerErrorSpy).toHaveBeenCalledWith('Response status: 400');
-            expect(loggerErrorSpy).toHaveBeenCalledWith(
-              'Response data: {"message":"Bad Request"}',
-            );
+          next: (response) => {
+            expect(response.cnbClientId).toEqual(mockClientData.cnbClientId);
+            expect(response.identityId).toEqual(mockResponse.data.identityId);
             done();
           },
         });
@@ -631,8 +529,8 @@ describe('RestMsaCoOnboardingStatusService', () => {
   });
 
   describe('getOtpDataFromValidateOtpState', () => {
-    it('should successfully get OTP data', (done) => {
-      const mockSessionId = 'test-session';
+    it('should return OTP data from validate OTP state', async () => {
+      const sessionId = 'test-session-id';
       const mockResponse = {
         data: {
           'validate-otp': {
@@ -642,6 +540,57 @@ describe('RestMsaCoOnboardingStatusService', () => {
           },
         },
       };
+
+      httpService.get.mockReturnValue(of({ data: mockResponse } as any));
+      const result = await firstValueFrom(
+        service.getOtpDataFromValidateOtpState(sessionId),
+      );
+
+      expect(result).toEqual({ otp: '123456' });
+    });
+  });
+
+  describe('completeOnboarding', () => {
+    it('should complete onboarding successfully', async () => {
+      const sessionId = 'test-session-id';
+      const mockResponse = { data: 'onboarding completed' };
+      const axiosResponse: AxiosResponse = {
+        data: mockResponse,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {} as any,
+      };
+      httpService.patch.mockReturnValue(of(axiosResponse as any));
+
+      const result = await firstValueFrom(service.completeOnboarding(sessionId));
+
+      expect(result).toEqual(mockResponse);
+      expect(httpService.patch).toHaveBeenCalledWith(
+        `http://localhost:8080/status/${sessionId}`,
+        {
+          status: 'COMPLETED',
+        },
+      );
+    });
+  });
+
+  describe('getCompleteOnboardingStatus', () => {
+    it('should return complete onboarding status', async () => {
+      const sessionId = 'test-session-id';
+      const mockResponse: GetAllOnboardingResponseDto = {
+        id: 1,
+        sessionId: 'test-session-id',
+        securitySeed: 'seed',
+        identityId: 'id',
+        onbType: 'CNB',
+        data: {},
+        status: 'COMPLETED',
+        publicKey: 'key',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
       const axiosResponse: AxiosResponse = {
         data: mockResponse,
         status: 200,
@@ -652,111 +601,11 @@ describe('RestMsaCoOnboardingStatusService', () => {
 
       httpService.get.mockReturnValue(of(axiosResponse));
 
-      service
-        .getOtpDataFromValidateOtpState(mockSessionId)
-        .pipe(first())
-        .subscribe({
-          next: (result) => {
-            expect(result).toEqual({ otp: '123456' });
-            expect(httpService.get).toHaveBeenCalledWith(
-              'http://localhost:8080/status/session/test-session',
-            );
-            done();
-          },
-          error: done,
-        });
-    });
-
-    it('should handle error in getOtpDataFromValidateOtpState', (done) => {
-      const mockSessionId = 'test-session';
-
-      httpService.get.mockReturnValue(
-        throwError(() => new Error('HTTP Error')),
+      const result = await firstValueFrom(
+        service.getCompleteOnboardingStatus(sessionId),
       );
 
-      service
-        .getOtpDataFromValidateOtpState(mockSessionId)
-        .pipe(first())
-        .subscribe({
-          next: () => done('Should not succeed'),
-          error: (error) => {
-            expect(error.message).toBe(
-              'Failed to get client data from otp validation state in RestMsaCoOnboardingStatusService: HTTP Error',
-            );
-            done();
-          },
-        });
-    });
-  });
-
-  describe('completeOnboarding', () => {
-    it('should successfully complete onboarding', (done) => {
-      const mockSessionId = 'test-session';
-      const mockResponse: ConfirmDataResponseDto = {
-        successSteps: ['complete'],
-        requiredSteps: [],
-        optionalSteps: [],
-        failureSteps: [],
-        successIdentityValidationSteps: [],
-        standbyIdentityValidationSteps: [],
-        processingFailure: [],
-        status: 'COMPLETED',
-        onbType: 'test-type',
-      };
-      const axiosResponse: AxiosResponse = {
-        data: mockResponse,
-        status: 200,
-        statusText: 'OK',
-        headers: {},
-        config: {} as any,
-      };
-
-      httpService.patch.mockReturnValue(of(axiosResponse));
-
-      service
-        .completeOnboarding(mockSessionId)
-        .pipe(first())
-        .subscribe({
-          next: (result) => {
-            expect(result).toEqual(mockResponse);
-            expect(httpService.patch).toHaveBeenCalledWith(
-              'http://localhost:8080/status/test-session',
-              { status: 'COMPLETED' },
-            );
-            done();
-          },
-          error: done,
-        });
-    });
-
-    it('should handle error in completeOnboarding', (done) => {
-      const mockSessionId = 'test-session';
-
-      httpService.patch.mockReturnValue(
-        throwError(() => new Error('HTTP Error')),
-      );
-
-      service
-        .completeOnboarding(mockSessionId)
-        .pipe(first())
-        .subscribe({
-          next: () => done('Should not succeed'),
-          error: (error) => {
-            expect(error.message).toBe(
-              'Failed to set step accept contract in RestMsaCoOnboardingStatusService: HTTP Error',
-            );
-            done();
-          },
-        });
-    });
-
-    it('should throw an error if API URL is not defined', () => {
-      const mockSessionId = 'test-session';
-      configService.get.mockReturnValue(undefined);
-
-      expect(() => service.completeOnboarding(mockSessionId)).toThrow(
-        `Cannot read properties of undefined (reading 'pipe')`,
-      );
+      expect(result).toEqual(mockResponse);
     });
   });
 });

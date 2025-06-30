@@ -2,40 +2,92 @@
 # THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
 # ------------------------------------------------------
 
-input AcceptBillingInput {
-  sessionId: String!
-}
-
-type AcceptBillingResponse {
-  errors: [ErrorDetail!]
-  sessionId: String!
-  status: String!
-}
-
 input AcceptContractDataInputDto {
   businessDeviceId: String!
   deviceName: String!
-  sessionId: String!
+  onboardingSessionId: String!
 }
 
 type AcceptContractDataResponseDto {
   email: String!
   errors: [ErrorDetail!]
+  onboardingSessionId: String!
   otpResponse: GenerateOtpRespDto!
   requestId: String!
-  sessionId: String!
+  status: String!
+}
+
+type CnbQrInfoResponse {
+  amount: Float!
+  cnbAccount: String!
+  peopleAccount: String
+  peopleName: String
+  status: String!
+  transactionDate: String
+  transactionNumber: String
+}
+
+type CommissionDto {
+  amount: Float!
+  id: String!
+  status: String!
+  transactionDate: String!
+  type: String!
+}
+
+type CommissionPayoutDestinationAccount {
+  """The name of the account holder."""
+  name: String!
+
+  """The account holder's RUC."""
+  ruc: String!
+}
+
+type CommissionPayoutTaxDetails {
+  """The total tax amount."""
+  amount: Float!
+
+  """The tax rate applied."""
+  rate: Float!
+}
+
+type CommissionsButtonStatusResponseDto {
+  errors: [ErrorDetail!]
+  message: String!
   status: String!
 }
 
 input ConfirmDataInputDto {
   establishment: EstablishmentInputDto!
-  sessionId: String!
+  onboardingSessionId: String!
 }
 
 type ConfirmDataResponseDto {
-  cnbClientId: String!
   errors: [ErrorDetail!]
-  sessionId: String!
+  onboardingSessionId: String!
+  status: String!
+}
+
+input ConfirmDepositInput {
+  transactionId: String!
+}
+
+type ConfirmDepositResponse {
+  errors: [ErrorDetail!]
+  message: String!
+  status: String!
+  transactionDate: String
+  transactionNumber: String
+}
+
+input CreateCalificationInput {
+  comments: String
+  context: String!
+  rating: Int!
+}
+
+type CreateCalificationResponse {
+  errors: [ErrorDetail!]
   status: String!
 }
 
@@ -45,8 +97,12 @@ type DataGenerateOtpRespDto {
 }
 
 type DataResponse {
-  cnbState: String!
-  errors: [ErrorDto!]
+  address: [EstablishmentValidateCnbOutputDto!]
+  cnbState: String
+  errors: [ErrorDetail!]
+  merchantName: String!
+  preApprovedState: String!
+  remainingAttemptsOnb: Float
   status: String!
 }
 
@@ -54,12 +110,21 @@ type DataStateCnb {
   startOnbCnb: StartOnbCnb!
 }
 
-type ErrorDetail {
-  code: String!
-  message: String!
+type DocumentValidationResponse {
+  errors: [ErrorDetail!]
+  status: String!
+  statusValidation: String!
 }
 
-type ErrorDto {
+input DocumentValidationStartDto {
+  backsideImage: String!
+  country: String!
+  frontsideImage: String!
+  idType: String!
+  onboardingSessionId: String!
+}
+
+type ErrorDetail {
   code: String!
   message: String!
 }
@@ -74,26 +139,176 @@ type EstablishmentOutputDto {
   numberEstablishment: String!
 }
 
+type EstablishmentValidateCnbOutputDto {
+  commercialName: String!
+  establishmentType: String!
+  fullAddress: String!
+  headquarters: String!
+  numberEstablishment: String!
+  state: String!
+}
+
+input ExecuteDepositInput {
+  transactionId: String!
+}
+
+type ExecuteDepositResponse {
+  errors: [ErrorDetail!]
+  message: String!
+  status: String!
+}
+
+input FacialAndLivenessValidationDto {
+  method: Int!
+  token1: String!
+  token2: String!
+}
+
+input FingeprintCodeInputDto {
+  fingerprintData: String!
+  nationalID: String!
+  onboardingSessionId: String!
+}
+
+type FingeprintCodeResponseDto {
+  errors: [ErrorDetail!]
+  message: String!
+  status: String!
+}
+
+type GenerateCommissionInvoiceResponseDto {
+  errors: [ErrorDetail!]
+
+  """The message of the response."""
+  message: String!
+  status: String!
+}
+
 type GenerateOtpRespDto {
   expirationDate: String!
   remainingResendAttempts: Float!
 }
 
+input GenerateQrInput {
+  amount: String!
+}
+
+type GenerateQrResponse {
+  errors: [ErrorDetail!]
+  qrBase64: String!
+  qrId: String!
+  qrUrl: String!
+  status: String!
+  transactionId: String!
+}
+
+input GetCnbTransactionsInput {
+  fromDate: String!
+  page: Int!
+  size: Int!
+  toDate: String!
+  transacitonType: String
+}
+
+type GetCnbTransactionsResponse {
+  currentPage: Int!
+  errors: [ErrorDetail!]
+  status: String!
+  totalElements: Int!
+  totalPages: Int!
+  transactions: [Transaction!]!
+}
+
+type GetCommissionPayoutPreviewResponseDto {
+  errors: [ErrorDetail!]
+
+  """The prepared commission payout preview details."""
+  prepareCommissionPayout: PrepareCommissionPayout!
+  status: String!
+}
+
+input GetQrInput {
+  transactionId: String!
+}
+
+input InitiateCellPhoneDepositInput {
+  amount: String!
+  beneficiaryPhoneNumber: String!
+}
+
+type InitiateCellPhoneDepositResponse {
+  beneficiaryAccountNumber: String!
+  beneficiaryName: String!
+  errors: [ErrorDetail!]
+  message: String!
+  ordererAccountNumber: String!
+  ordererName: String!
+  status: String!
+  transactionId: String!
+}
+
+type MonthlyCommissionSummary {
+  month: String!
+  monthlyCount: Int!
+  monthlyTotal: Float!
+}
+
+type MonthlyCommissionSummaryResponse {
+  errors: [ErrorDetail!]
+  status: String!
+  summary: [MonthlyCommissionSummary!]!
+}
+
 type Mutation {
-  acceptBilling(input: AcceptBillingInput!): AcceptBillingResponse!
   acceptContract(input: AcceptContractDataInputDto!): AcceptContractDataResponseDto!
+  confirmCellPhoneDeposit(input: ExecuteDepositInput!): ExecuteDepositResponse!
   confirmData(input: ConfirmDataInputDto!): ConfirmDataResponseDto!
+  createCalification(input: CreateCalificationInput!): CreateCalificationResponse!
+  generateCommissionInvoice: GenerateCommissionInvoiceResponseDto!
+  initiateCellPhoneDeposit(input: InitiateCellPhoneDepositInput!): InitiateCellPhoneDepositResponse!
+  kycValidateDocument(input: DocumentValidationStartDto!): DocumentValidationResponse!
+  qrGenerator(input: GenerateQrInput!): GenerateQrResponse!
   resendOtp(input: ResendOtpInput!): ResendOtpResponse!
   signContract(input: SignContractInput!): SignContractResponse!
   startOnboarding: StartOnboardingResponse!
+  storeFingeprintCode(input: FingeprintCodeInputDto!): FingeprintCodeResponseDto!
   uploadClientsFile(file: Upload!): UploadClientsFileResponse!
   validateOtp(input: ValidateOtpInputDto!): ValidateOtpResponseDto!
 }
 
+type PrepareCommissionPayout {
+  """The currency of the payout."""
+  currency: String!
+
+  """The destination bank account."""
+  destinationAccount: CommissionPayoutDestinationAccount!
+
+  """The net amount to be paid out."""
+  netPayoutAmount: Float!
+
+  """The reason for the payout."""
+  payoutReason: String!
+
+  """The subtotal amount before taxes."""
+  subtotalAmount: Float!
+
+  """The tax details."""
+  taxDetails: CommissionPayoutTaxDetails!
+}
+
 type Query {
+  cnbQrInfo(input: GetQrInput!): CnbQrInfoResponse!
+  cnbTransactions(input: GetCnbTransactionsInput!): GetCnbTransactionsResponse!
+  commissionsButtonStatus: CommissionsButtonStatusResponseDto!
+  confirmDeposit(input: ConfirmDepositInput!): ConfirmDepositResponse!
+  monthlyCommissionSummary: MonthlyCommissionSummaryResponse!
+  prepareCommissionPayout: GetCommissionPayoutPreviewResponseDto!
   queryDocument(input: QueryDocumentInput!): QueryDocumentResponse!
-  queryOnboardingStatus(sessionId: String!): QueryOnboardingStatusDto!
+  searchCommissions(input: SearchCommissionsInputDto!): SearchCommissionsResponseDto!
+  startBiometricValidation(input: StartBiometricValidationInputDto!): StartBiometricValidationResponseDto!
+  validateBalance(input: ValidateBalanceInputDto!): ValidateBalanceResponseDto!
   validateCnbState: DataResponse!
+  validateDepositAccount(input: ValidateDepositAccountInput!): ValidateDepositAccountResponse!
 }
 
 type QueryDocumentData {
@@ -112,15 +327,8 @@ type QueryDocumentResponse {
   status: String!
 }
 
-type QueryOnboardingStatusDto {
-  data: [String!]!
-  errors: [ErrorDetail!]
-  requiredSteps: [String!]!
-  status: String!
-}
-
 input ResendOtpInput {
-  sessionId: String!
+  onboardingSessionId: String!
 }
 
 type ResendOtpResponse {
@@ -131,8 +339,23 @@ type ResendOtpResponse {
   status: String!
 }
 
+input SearchCommissionsInputDto {
+  endMonth: String!
+  page: Int!
+  size: Int!
+  startMonth: String!
+}
+
+type SearchCommissionsResponseDto {
+  commissions: [CommissionDto!]!
+  currentPage: Int!
+  totalElements: Int!
+  totalPages: Int!
+}
+
 input SignContractInput {
-  sessionId: String!
+  """unique identified of the session"""
+  onboardingSessionId: String!
 }
 
 type SignContractResponse {
@@ -144,16 +367,19 @@ type SignContractResponse {
 }
 
 type SignContractResponseDetails {
-  clientStatusUpdateResult: String!
-  createContractDocumentResult: String!
   errorMessage: String
-  generateContractHtmlResult: String!
-  getClientDataResult: String!
   getOtpDataResult: String!
-  invoiceAccountResult: String!
-  remainingVerifyAttempts: String
-  sendContractEmailResult: String!
-  updateOnboardingStateResult: String!
+}
+
+input StartBiometricValidationInputDto {
+  facialAndLivenessValidation: FacialAndLivenessValidationDto!
+  onboardingSessionId: String!
+}
+
+type StartBiometricValidationResponseDto {
+  errors: [ErrorDetail!]
+  scanId: String!
+  status: String!
 }
 
 type StartOnbCnb {
@@ -170,8 +396,18 @@ type StartOnbCnbData {
 type StartOnboardingResponse {
   errors: [ErrorDetail!]
   establishments: [EstablishmentOutputDto!]!
-  sessionId: String!
+  onboardingSessionId: String!
   status: String!
+}
+
+type Transaction {
+  amount: Float!
+  currency: String!
+  date: String!
+  description: String!
+  id: String!
+  source: String!
+  type: String!
 }
 
 """The `Upload` scalar type represents a file upload."""
@@ -182,14 +418,38 @@ type UploadClientsFileResponse {
   message: String!
   skippedRecords: [String!]!
   status: String!
+
+  """number of records to be processed in the file"""
   totalProcessed: Float!
+}
+
+input ValidateBalanceInputDto {
+  """amount to be validated based on the transaction"""
+  ammount: Float!
+}
+
+type ValidateBalanceResponseDto {
+  availableBalance: Float!
+  isValidAmmount: Boolean!
+}
+
+input ValidateDepositAccountInput {
+  beneficiaryPhoneNumber: String!
+}
+
+type ValidateDepositAccountResponse {
+  beneficiaryAccountNumber: String!
+  beneficiaryName: String!
+  errors: [ErrorDetail!]
+  message: String!
+  status: String!
 }
 
 input ValidateOtpInputDto {
   businessDeviceId: String!
+  onboardingSessionId: String!
   otp: String!
   requestId: String!
-  sessionId: String!
 }
 
 type ValidateOtpResponseDto {

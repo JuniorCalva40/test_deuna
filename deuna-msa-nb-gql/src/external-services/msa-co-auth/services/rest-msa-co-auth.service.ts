@@ -6,8 +6,9 @@ import { map, catchError } from 'rxjs/operators';
 import { IMsaCoAuthService } from '../interfaces/msa-co-auth-service.interface';
 import { GenerateOtpInputDto } from '../dto/msa-co-auth-input.dto';
 import { GenerateOtpResponseDto } from '../dto/msa-co-auth-response.dto';
-import { errorCodes } from '../constants/constants';
+import { errorCodes, otpNotificationChannel } from '../constants/constants';
 import { AxiosError } from 'axios';
+import { HttpLoggerUtil } from '../../../utils/http-logger.util';
 
 interface ServiceConfig {
   apiUrl: string;
@@ -79,21 +80,50 @@ export class RestMsaCoAuthService implements IMsaCoAuthService {
     endpoint: string,
     data: any,
     includeAttempts = false,
+    traceId?: string,
   ): Observable<T> {
     if (!this.config.apiUrl) {
-      throw new Error('MSA_CO_AUTH_URL is not defined in the configuration');
+      return throwError(
+        () =>
+          new Error('MSA_CO_AUTH_URL is not defined in the configuration'),
+      );
     }
-
+  
     const fullUrl = `${this.config.apiUrl}${endpoint}`;
+    const context = 'MsaCoAuthService';
+    const className = RestMsaCoAuthService.name;
+    const methodName = operation;
+  
+    HttpLoggerUtil.logRequest({
+      context,
+      className,
+      methodName,
+      url: fullUrl,
+      method: method.toUpperCase(),
+      payload: data,
+      traceId: traceId,
+    });
+  
     const request =
       method === 'post'
         ? this.httpService.post<T>(fullUrl, data, {
             headers: { 'Content-Type': 'application/json' },
           })
         : this.httpService.put<T>(fullUrl, data);
-
+  
     return request.pipe(
-      map((response) => response.data),
+      map((response) => {
+        HttpLoggerUtil.logResponse({
+          context,
+          className,
+          methodName,
+          url: fullUrl,
+          method: method.toUpperCase(),
+          response: response.data,
+          traceId: traceId,
+        });
+        return response.data;
+      }),
       catchError((error: AxiosError) =>
         this.handleError(operation, error, includeAttempts),
       ),
@@ -112,13 +142,14 @@ export class RestMsaCoAuthService implements IMsaCoAuthService {
       '/microcommerce-otp/contract/validate',
       data,
       true,
+      requestId,
     );
   }
 
   generateOtp(input: GenerateOtpInputDto): Observable<GenerateOtpResponseDto> {
     const data = {
       phoneNumber: '',
-      notificationChannel: ['SIGN_CONTRACT_EMAIL'],
+      notificationChannel: [otpNotificationChannel],
       ...input,
     };
 
@@ -128,6 +159,7 @@ export class RestMsaCoAuthService implements IMsaCoAuthService {
       '/microcommerce-otp/contract/generate',
       data,
       false,
+      data.requestId,
     );
   }
 }

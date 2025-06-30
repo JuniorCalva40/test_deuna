@@ -20,7 +20,7 @@ export class UploadClientsFileResolver {
         throw new Error('El archivo debe ser un CSV válido');
       }
 
-      return this.uploadClientsFileService.uploadClientsFile(file);
+      return await this.uploadClientsFileService.uploadClientsFile(file);
     } catch (error) {
       throw new Error(`Error al procesar el archivo: ${error.message}`);
     }

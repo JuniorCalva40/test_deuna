@@ -5,3 +5,5 @@ export const errorCodes = {
   [ErrorCodes.MIC_ONB_STATUS_OTP_VERIFY_ONE_REMAINING_ATTEMPT]: 1,
   [ErrorCodes.MIC_ONB_STATUS_OTP_VERIFY_ATTEMPTS_EXCEEDED]: 0,
 };
+
+export const otpNotificationChannel = 'EMAIL_NOTIFICATION';

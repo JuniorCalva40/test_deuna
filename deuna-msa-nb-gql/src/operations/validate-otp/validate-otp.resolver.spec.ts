@@ -12,7 +12,7 @@ describe('ValidateOtpResolver', () => {
 
   const mockValidateOtpInput: ValidateOtpInputDto = {
     otp: '123456',
-    sessionId: 'test-session-id',
+    onboardingSessionId: 'test-session-id',
     businessDeviceId: 'test-business-device-id',
     requestId: 'test-request-id',
   };
@@ -108,7 +108,7 @@ describe('ValidateOtpResolver', () => {
       // Arrange
       const incompleteInput: ValidateOtpInputDto = {
         otp: '123456',
-        sessionId: 'test-session-id',
+        onboardingSessionId: 'test-session-id',
         businessDeviceId: undefined,
         requestId: undefined,
       } as ValidateOtpInputDto;

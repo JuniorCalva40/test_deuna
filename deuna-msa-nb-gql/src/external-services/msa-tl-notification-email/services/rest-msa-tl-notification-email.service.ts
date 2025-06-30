@@ -58,7 +58,7 @@ export class RestMsaTlNotificationEmailService
     await this.kafkaService.publishToQueue({
       topic: topic,
       headers: {
-        source: 'leap-x/nb-gql',
+        source: 'leap-x/nb-gql-email',
         timestamp: new Date().toISOString(),
       },
       value: dataNotification,

@@ -6,7 +6,7 @@ include $(ENV_FILE)
 .DEFAULT_GOAL := help # when you run make, it defaults to printing available commands
 
 COMPOSE_PROJECT_NAME = deuna-msa-nb-gql
-BUILD_IMAGES_DEP = deuna-build-dep
+BUILD_IMAGES_DEP = deuna-build-dep-gql
 CONTAINER_APP_FOLDER  = /app
 
 # Available platforms: linux/amd64 | linux/arm64/v8 | linux/x86_64
@@ -91,6 +91,14 @@ interactive: ## run the api standalone only for healthcheck and no db connection
 		$(DEV_VOLUMES) \
 		-p "3000:3000" \
 		$(COMPOSE_PROJECT_NAME):latest /bin/ash
+
+.PHONY: lint
+lint: ## run lint
+	docker run -it --workdir="$(CONTAINER_APP_FOLDER)" \
+		--platform $(PLATFORM) \
+		$(DEV_VOLUMES) \
+		-p "3000:3000" \
+		$(COMPOSE_PROJECT_NAME):latest /bin/ash -ci "npm run lint"
 
 .PHONY: launch-local
 launch-local: docker-clean ## launch the multi-container on local machine

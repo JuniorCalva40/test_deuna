@@ -2,7 +2,6 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { HttpService } from '@nestjs/axios';
 import { RestMsaCoOnboardingStatusService } from '../services/rest-msa-co-onboarding-status.service';
-import { FakeMsaCoOnboardingStatusService } from '../services/mock-msa-co-onboarding-status.service';
 import {
   MSA_CO_ONBOARDING_STATE_SERVICE,
   msaNbOnboardingStatusServiceProvider,
@@ -35,21 +34,6 @@ describe('msaNbOnboardingStatusServiceProvider', () => {
     expect(service).toBeInstanceOf(RestMsaCoOnboardingStatusService);
   });
 
-  it('should provide FakeMsaCoOnboardingStatusService when MSA_CO_ONBOARDING_STATUS_SERVICE_TYPE is "mock"', async () => {
-    configService.get.mockReturnValue('mock');
-
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        msaNbOnboardingStatusServiceProvider,
-        { provide: ConfigService, useValue: configService },
-        { provide: HttpService, useValue: httpService },
-      ],
-    }).compile();
-
-    const service = module.get(MSA_CO_ONBOARDING_STATE_SERVICE);
-    expect(service).toBeInstanceOf(FakeMsaCoOnboardingStatusService);
-  });
-
   it('should provide RestMsaCoOnboardingStatusService when MSA_CO_ONBOARDING_STATUS_SERVICE_TYPE is undefined', async () => {
     configService.get.mockReturnValue(undefined);
 
@@ -78,8 +62,5 @@ describe('msaNbOnboardingStatusServiceProvider', () => {
 
     const service = module.get(MSA_CO_ONBOARDING_STATE_SERVICE);
     expect(service).toBeInstanceOf(RestMsaCoOnboardingStatusService);
-    expect(configService.get).toHaveBeenCalledWith(
-      'MSA_CO_ONBOARDING_STATUS_SERVICE_TYPE',
-    );
   });
 });

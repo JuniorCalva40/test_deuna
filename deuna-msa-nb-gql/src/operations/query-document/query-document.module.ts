@@ -1,11 +1,11 @@
 import { Module } from '@nestjs/common';
 import { QueryDocumentResolver } from './query-document.resolver';
 import { QueryDocumentService } from './services/query-document.service';
-import { MsaCoDocumentModule } from '../../external-services/msa-co-document/msa-co-document.module';
+import { MsaNbCnbOrqModule } from 'src/external-services/msa-nb-cnb-orq/msa-nb-cnb-orq.module';
 import { HttpModule } from '@nestjs/axios';
 
 @Module({
-  imports: [MsaCoDocumentModule, HttpModule],
+  imports: [MsaNbCnbOrqModule, HttpModule],
   providers: [QueryDocumentResolver, QueryDocumentService],
 })
 export class QueryDocumentModule {}

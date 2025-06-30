@@ -82,6 +82,15 @@ describe('UploadClientsFileResolver', () => {
       expect(resolvedServiceArg).toEqual(mockFile);
       });
 
+    it('should throw an error if the file is null', async () => {
+      await expect(
+        resolver.uploadClientsFile(Promise.resolve(null)),
+      ).rejects.toThrow(
+        'Error al procesar el archivo: El archivo debe ser un CSV válido',
+      );
+      expect(service.uploadClientsFile).not.toHaveBeenCalled();
+    });
+
     it('should throw an error for non-CSV file', async () => {
       const invalidFile = await createMockFileUpload('test.txt', 'text/plain');
 
@@ -109,7 +118,7 @@ describe('UploadClientsFileResolver', () => {
 
       await expect(
         resolver.uploadClientsFile(Promise.resolve(mockFile)),
-      ).rejects.toThrow('Service error');
+      ).rejects.toThrow('Error al procesar el archivo: Service error');
 
       expect(service.uploadClientsFile).toHaveBeenCalled();
 

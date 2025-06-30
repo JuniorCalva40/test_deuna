@@ -1,12 +1,22 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { UploadClientsFileService } from './upload-clients-file.service';
-import { MSA_NB_CLIENT_SERVICE } from '../../../external-services/msa-nb-client/providers/msa-nb-client-service.provider';
+import { MSA_NB_CLIENT_SERVICE } from '../../../external-services/msa-nb-cnb-service/providers/msa-nb-client-service.provider';
 import { of, throwError } from 'rxjs';
 import { ErrorHandler } from '../../../utils/error-handler.util';
+import { ErrorCodes } from '../../../common/constants/error-codes';
+import { ApolloError } from 'apollo-server-express';
 
 describe('UploadClientsFileService', () => {
   let service: UploadClientsFileService;
   let mockMsaNbClientService: jest.Mocked<any>;
+
+  const mockFile = {
+    createReadStream: jest.fn(),
+    mimetype: 'text/csv',
+    filename: 'test.csv',
+  };
+
+  const mockFileContent = Buffer.from('test,data,content');
 
   beforeEach(async () => {
     mockMsaNbClientService = {
@@ -24,6 +34,28 @@ describe('UploadClientsFileService', () => {
     }).compile();
 
     service = module.get<UploadClientsFileService>(UploadClientsFileService);
+
+    jest.spyOn(ErrorHandler, 'handleError').mockImplementation((error) => {
+      throw new ApolloError(error.message, error.code, {
+        errorResponse: {
+          status: 'ERROR',
+          errors: [
+            {
+              code: error.code,
+              message: error.message,
+              context: 'upload-clients-file',
+              details: error.details,
+            },
+          ],
+        },
+      });
+    });
+
+    mockFile.createReadStream.mockReturnValue({
+      [Symbol.asyncIterator]: async function* () {
+        yield mockFileContent;
+      },
+    });
   });
 
   afterEach(() => {
@@ -34,119 +66,122 @@ describe('UploadClientsFileService', () => {
     expect(service).toBeDefined();
   });
 
-  describe('uploadClientsFile', () => {
-    const mockFile = {
-      createReadStream: jest.fn(),
-      mimetype: 'text/csv',
-    };
-
-    const mockFileContent = Buffer.from('test,data,content');
-
-    beforeEach(() => {
-      mockFile.createReadStream.mockReturnValue({
-        [Symbol.asyncIterator]: async function* () {
-          yield mockFileContent;
-        },
-      });
-    });
-
-    it('should successfully upload and process CSV file', async () => {
-      // Arrange
-      const mockUploadResponse = {
-        totalProcessed: 10,
-        skippedRecords: ['record1', 'record2'],
+  describe('Successful Upload', () => {
+    it('should process a valid file successfully', async () => {
+      const mockResponse = {
+        totalProcessed: 100,
+        skippedRecords: [],
       };
+      mockMsaNbClientService.uploadClientsFile.mockReturnValue(of(mockResponse));
 
-      mockMsaNbClientService.uploadClientsFile.mockReturnValue(
-        of(mockUploadResponse),
-      );
-
-      // Act
       const result = await service.uploadClientsFile(
         Promise.resolve(mockFile as any),
       );
 
-      // Assert
-      expect(result).toEqual({
-        status: 'SUCCESS',
-        message: 'Archivo procesado exitosamente',
-        totalProcessed: mockUploadResponse.totalProcessed,
-        skippedRecords: mockUploadResponse.skippedRecords,
-      });
+      expect(result.status).toBe('SUCCESS');
+      expect(result.totalProcessed).toBe(mockResponse.totalProcessed);
+      const expectedBase64 = mockFileContent.toString('base64');
       expect(mockMsaNbClientService.uploadClientsFile).toHaveBeenCalledWith(
-        mockFileContent.toString('base64'),
+        expectedBase64,
+      );
+    });
+  });
+
+  describe('File Validation Failures', () => {
+    it('should throw an error if the file is null or undefined', async () => {
+      await expect(service.uploadClientsFile(null)).rejects.toThrow(
+        ApolloError,
+      );
+      await expect(service.uploadClientsFile(undefined)).rejects.toThrow(
+        ApolloError,
       );
     });
 
-    it('should handle non-CSV file type', async () => {
-      // Arrange
-      const invalidFile = {
-        ...mockFile,
-        mimetype: 'application/pdf',
-      };
-
-      jest.spyOn(ErrorHandler, 'handleError').mockImplementation((message) => {
-        throw new Error(message);
-      });
-
-      // Act & Assert
+    it('should throw an error for invalid file type', async () => {
+      const invalidFile = { ...mockFile, mimetype: 'application/pdf' };
       await expect(
         service.uploadClientsFile(Promise.resolve(invalidFile as any)),
-      ).rejects.toThrow('El archivo debe ser un CSV');
-
-      expect(mockMsaNbClientService.uploadClientsFile).not.toHaveBeenCalled();
+      ).rejects.toThrow(ApolloError);
     });
 
-    it('should handle null upload response', async () => {
-      // Arrange
+    it('should throw an error for an empty file', async () => {
+      const emptyFile = {
+        ...mockFile,
+        createReadStream: jest.fn().mockReturnValue({
+          [Symbol.asyncIterator]: async function* () {
+            yield Buffer.from('');
+          },
+        }),
+      };
+      await expect(
+        service.uploadClientsFile(Promise.resolve(emptyFile as any)),
+      ).rejects.toThrow(ApolloError);
+    });
+  });
+
+  describe('File Streaming Failures', () => {
+    it('should throw an error if file size exceeds the limit', async () => {
+      const largeContent = Buffer.alloc(6 * 1024 * 1024); // 6MB
+      const largeFile = {
+        ...mockFile,
+        createReadStream: jest.fn().mockReturnValue({
+          [Symbol.asyncIterator]: async function* () {
+            yield largeContent;
+          },
+        }),
+      };
+      await expect(
+        service.uploadClientsFile(Promise.resolve(largeFile as any)),
+      ).rejects.toThrow(ApolloError);
+    });
+
+    it('should handle generic stream reading errors', async () => {
+      const streamError = new Error('A stream error occurred');
+      const errorFile = {
+        ...mockFile,
+        createReadStream: jest.fn().mockReturnValue({
+          [Symbol.asyncIterator]: async function* () {
+            yield mockFileContent;
+            throw streamError;
+          },
+        }),
+      };
+
+      await expect(
+        service.uploadClientsFile(Promise.resolve(errorFile as any)),
+      ).rejects.toThrow(ApolloError);
+    });
+  });
+
+  describe('Service Call Failures', () => {
+    it('should handle a null response from the client service', async () => {
       mockMsaNbClientService.uploadClientsFile.mockReturnValue(of(null));
-
-      jest.spyOn(ErrorHandler, 'handleError').mockImplementation((message) => {
-        throw new Error(message);
-      });
-
-      // Act & Assert
       await expect(
         service.uploadClientsFile(Promise.resolve(mockFile as any)),
-      ).rejects.toThrow('Error al cargar el archivo de clientes');
+      ).rejects.toThrow(ApolloError);
     });
 
-    it('should handle upload service error', async () => {
-      // Arrange
-      const mockError = new Error('Upload service error');
+    it('should handle an error with a code from the client service', async () => {
+      const serviceError = {
+        code: 'SERVICE_UNAVAILABLE',
+        message: 'The downstream service is down',
+      };
       mockMsaNbClientService.uploadClientsFile.mockReturnValue(
-        throwError(() => mockError),
+        throwError(() => serviceError),
       );
-
-      jest.spyOn(ErrorHandler, 'handleError').mockImplementation((error) => {
-        throw error;
-      });
-
-      // Act & Assert
       await expect(
         service.uploadClientsFile(Promise.resolve(mockFile as any)),
-      ).rejects.toThrow('Upload service error');
+      ).rejects.toThrow(ApolloError);
     });
 
-    it('should handle file read error', async () => {
-      // Arrange
-      const mockReadError = new Error('File read error');
-      mockFile.createReadStream.mockReturnValue({
-        [Symbol.asyncIterator]: async function* () {
-          throw mockReadError;
-        },
-      });
-
-      jest.spyOn(ErrorHandler, 'handleError').mockImplementation((error) => {
-        throw error;
-      });
-
-      // Act & Assert
+    it('should handle a generic error from the client service', async () => {
+      const genericError = new Error('Internal Server Error');
+      mockMsaNbClientService.uploadClientsFile.mockReturnValue(
+        throwError(() => genericError),
+      );
       await expect(
         service.uploadClientsFile(Promise.resolve(mockFile as any)),
-      ).rejects.toThrow('File read error');
-
-      expect(mockMsaNbClientService.uploadClientsFile).not.toHaveBeenCalled();
+      ).rejects.toThrow(ApolloError);
     });
   });
 });

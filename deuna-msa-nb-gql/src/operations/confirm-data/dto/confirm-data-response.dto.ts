@@ -1,44 +1,17 @@
 import { ObjectType, Field, Int, InputType } from '@nestjs/graphql';
-import { DataStateCnb } from '../../../external-services/msa-co-onboarding-status/dto/msa-co-onboarding-status-response.dto';
+import {
+  DataStateCnb,
+  OnboardingStatusResponseDto,
+} from '../../../external-services/msa-co-onboarding-status/dto/msa-co-onboarding-status-response.dto';
 import { StandardizedResponse } from '../../../utils/standar-response.dto';
 import { EstablishmentOutputDto } from '../../../utils/establishment.dto';
 @ObjectType()
-export class UpdateDataOnboardingResponseDto {
-  @Field(() => [String])
-  successSteps: string[];
-
-  @Field(() => [String])
-  requiredSteps: string[];
-
-  @Field(() => [String])
-  optionalSteps: string[];
-
-  @Field(() => [String])
-  failureSteps: string[];
-
-  @Field(() => [String])
-  successIdentityValidationSteps: string[];
-
-  @Field(() => [String])
-  standbyIdentityValidationSteps: string[];
-
-  @Field(() => [String])
-  processingFailure: string[];
-
-  @Field()
-  status: string;
-
-  @Field()
-  onbType: string;
-}
+export class UpdateDataOnboardingResponseDto extends OnboardingStatusResponseDto {}
 
 @ObjectType()
 export class ConfirmDataResponseDto extends StandardizedResponse {
-  @Field(() => String)
-  cnbClientId: string;
-
   @Field()
-  sessionId: string;
+  onboardingSessionId: string;
 }
 
 @ObjectType()
@@ -47,7 +20,7 @@ export class GetStateOnboardingResponseDto {
   id?: number;
 
   @Field()
-  sessionId: string;
+  onboardingSessionId: string;
 
   @Field()
   securitySeed: string;
@@ -90,4 +63,9 @@ export class DataConfigurationResponse {
 
   @Field()
   enabled: boolean;
+}
+
+export class ISaveElectronicSignatureResponseRedis {
+  status: string;
+  message: string;
 }

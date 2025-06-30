@@ -3,30 +3,6 @@ import { StandardizedResponse } from '../../../utils/standar-response.dto';
 
 @ObjectType()
 export class SignContractResponseDetails {
-  @Field()
-  getClientDataResult: string;
-
-  @Field()
-  generateContractHtmlResult: string;
-
-  @Field()
-  createContractDocumentResult: string;
-
-  @Field()
-  invoiceAccountResult: string;
-
-  @Field()
-  clientStatusUpdateResult: string;
-
-  @Field()
-  sendContractEmailResult: string;
-
-  @Field()
-  updateOnboardingStateResult: string;
-
-  @Field({ nullable: true })
-  remainingVerifyAttempts?: string;
-
   @Field({ nullable: true })
   errorMessage?: string;
 

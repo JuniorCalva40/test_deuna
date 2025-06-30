@@ -1,12 +1,19 @@
 import { Injectable, Inject } from '@nestjs/common';
-import { lastValueFrom } from 'rxjs';
-import { ResendOtpInput, ResendOtpResponse } from '../dto/resend-otp.dto';
+import { lastValueFrom, Observable } from 'rxjs';
+import {
+  ResendOtpInput,
+  ResendOtpResponse,
+  ClientInfoResp,
+} from '../dto/resend-otp.dto';
 import { ErrorHandler } from '../../../utils/error-handler.util';
 import { ErrorCodes } from '../../../common/constants/error-codes';
 import { MSA_CO_ONBOARDING_STATE_SERVICE } from '../../../external-services/msa-co-onboarding-status/providers/msa-co-onboarding-status-provider';
 import { IMsaCoOnboardingStatusService } from '../../../external-services/msa-co-onboarding-status/interfaces/msa-co-onboarding-status-service.interface';
 import { MSA_CO_AUTH_SERVICE } from '../../../external-services/msa-co-auth/providers/msa-co-auth.provider';
 import { IMsaCoAuthService } from '../../../external-services/msa-co-auth/interfaces/msa-co-auth-service.interface';
+import { MSA_NB_CLIENT_SERVICE } from '../../../external-services/msa-nb-cnb-service/providers/msa-nb-client-service.provider';
+import { IMsaNbClientService } from '../../../external-services/msa-nb-cnb-service/interfaces/msa-nb-client-service.interface';
+import { PreApprovedState } from '../../../common/constants/common';
 
 interface AcceptContractData {
   businessDeviceId: string;
@@ -14,7 +21,6 @@ interface AcceptContractData {
   commerceName: string;
   email: string;
   requestId: string;
-  notificationChannel: string[];
 }
 
 @Injectable()
@@ -24,27 +30,32 @@ export class ResendOtpService {
     private readonly msaCoOnboardingStatusService: IMsaCoOnboardingStatusService,
     @Inject(MSA_CO_AUTH_SERVICE)
     private readonly msaCoAuthService: IMsaCoAuthService,
+    @Inject(MSA_NB_CLIENT_SERVICE)
+    private readonly msaNbClientService: IMsaNbClientService,
   ) {}
 
   async resendOtp(input: ResendOtpInput): Promise<ResendOtpResponse> {
     try {
+      const clientId = await this.validateClientStatus(
+        input.onboardingSessionId,
+      );
+
       const getOnboardingState = await lastValueFrom(
-        this.msaCoOnboardingStatusService.getOnboardingState(input.sessionId),
+        this.msaCoOnboardingStatusService.getOnboardingState(
+          input.onboardingSessionId,
+        ),
       );
 
       if (!getOnboardingState) {
         return ErrorHandler.handleError(
-          ErrorCodes.ONB_SESSION_EXPIRED,
+          ErrorCodes.ONB_GET_SESSION_FAIL,
           'resend-otp',
         );
       }
 
       const acceptContractData = getOnboardingState.data['accept-contract'];
 
-      if (
-        Object.keys(getOnboardingState.data).length !== 4 ||
-        acceptContractData.status !== 'SUCCESS'
-      ) {
+      if (!acceptContractData || acceptContractData.status !== 'SUCCESS') {
         return ErrorHandler.handleError(
           ErrorCodes.ONB_STATUS_INVALID,
           'resend-otp',
@@ -60,7 +71,6 @@ export class ResendOtpService {
           commerceName: acceptContractData.commerceName,
           email: acceptContractData.email,
           requestId: acceptContractData.requestId,
-          notificationChannel: acceptContractData.notificationChannel,
         }),
       );
 
@@ -69,6 +79,9 @@ export class ResendOtpService {
           ErrorCodes.AUTH_OTP_INVALID,
           'resend-otp',
         );
+      }
+      if (otpResponse.remainingResendAttempts === 0) {
+        await this.updateClientStatus(clientId);
       }
 
       return {
@@ -95,13 +108,38 @@ export class ResendOtpService {
       !data.deviceName ||
       !data.commerceName ||
       !data.email ||
-      !data.requestId ||
-      !data.notificationChannel
+      !data.requestId
     ) {
       return ErrorHandler.handleError(
         ErrorCodes.ONB_DATA_INCOMPLETE,
         'resend-otp',
       );
     }
+  }
+
+  private async validateClientStatus(sessionId: string): Promise<string> {
+    const response = await lastValueFrom(
+      this.msaCoOnboardingStatusService.getClientDataFromStartOnboardingState(
+        sessionId,
+      ) as Observable<ClientInfoResp>,
+    );
+
+    if (response.status === PreApprovedState.BLOCKED_TMP) {
+      ErrorHandler.handleError(
+        'Client is temporarily blocked by the OTP',
+        ErrorCodes.CLIENT_BLOCKED_TMP_OTP,
+      );
+    }
+
+    return response.cnbClientId;
+  }
+
+  private async updateClientStatus(clientId: string): Promise<void> {
+    await lastValueFrom(
+      this.msaNbClientService.updateClientStatus({
+        clientId,
+        status: PreApprovedState.BLOCKED_TMP,
+      }),
+    );
   }
 }

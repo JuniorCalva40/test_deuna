@@ -1,129 +1,193 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { lastValueFrom } from 'rxjs';
-import {
-  ConfirmDataInputDto,
-  DataConfigurationInputDto,
-} from '../dto/confirm-data-input.dto';
+import { ConfirmDataInputDto } from '../dto/confirm-data-input.dto';
 import {
   UpdateDataOnboardingResponseDto,
   GetStateOnboardingResponseDto,
   ConfirmDataResponseDto,
 } from '../dto/confirm-data-response.dto';
-import { MSA_NB_CONFIGURATION_SERVICE } from '../../../external-services/msa-nb-configuration/providers/msa-nb-configuration-provider';
 import { MSA_CO_ONBOARDING_STATE_SERVICE } from '../../../external-services/msa-co-onboarding-status/providers/msa-co-onboarding-status-provider';
-import { IMsaNbConfigurationService } from '../../../external-services/msa-nb-configuration/interfaces/msa-nb-configuration-service.interface';
 import { IMsaCoOnboardingStatusService } from '../../../external-services/msa-co-onboarding-status/interfaces/msa-co-onboarding-status-service.interface';
 import { UpdateDataOboardingInputDto } from 'src/external-services/msa-nb-configuration/dto/msa-nb-configuration-input.dto';
 import { ErrorHandler } from '../../../utils/error-handler.util';
-/**
- * Service responsible for confirming data.
- */
+import { ErrorCodes } from '../../../common/constants/error-codes';
+import { ISaveElectronicSignatureResponseRedis } from '../dto/confirm-data-response.dto';
+import {
+  IMsaNbCnbOrqService,
+  MSA_NB_CNB_ORQ_SERVICE,
+} from '../../../external-services/msa-nb-cnb-orq/interfaces/msa-nb-cnb-orq-service.interface';
+import { formatAddress } from '../../../utils/format-address.util';
+
 @Injectable()
 export class ConfirmDataService {
   private readonly logger = new Logger(ConfirmDataService.name);
-  private readonly MAX_RETRIES = 3;
-  private readonly INITIAL_RETRY_DELAY = 1000; // 1 segundo
+  private readonly CONTEXT = 'confirm-data';
 
   constructor(
     @Inject(MSA_CO_ONBOARDING_STATE_SERVICE)
     private readonly msaCoOnboardingStateService: IMsaCoOnboardingStatusService,
-    @Inject(MSA_NB_CONFIGURATION_SERVICE)
-    private readonly msaNbConfigurationService: IMsaNbConfigurationService,
+    @Inject(MSA_NB_CNB_ORQ_SERVICE)
+    private readonly msaNbCnbOrqService: IMsaNbCnbOrqService,
   ) {}
 
   /**
-   * Starts the confirm data process.
-   *
-   * @param input - The input for the confirm data process.
-   * @returns A promise that resolves to a ConfirmDataResponseDto.
+   * Creates a standardized error object
    */
-  async startConfirmData(
-    input: ConfirmDataInputDto,
-  ): Promise<ConfirmDataResponseDto> {
-    try {
-      const onboardingStateResponse = await this.getOnboardingState(input);
+  private createError(code: string, message: string, details?: any): Error {
+    return new Error(JSON.stringify({ code, message, details }));
+  }
 
-      if (!this.validateStateOnboarding(onboardingStateResponse)) {
-        return ErrorHandler.handleError(
-          `El estado [confirm-data] ya fue ejecutado para el sessionId: ${input.sessionId}`,
-          'confirm-data',
-        );
-      }
-
-      const cnbClientId =
-        onboardingStateResponse.data['start-onb-cnb'].data.cnbClientId;
-
-      await this.saveDataConfiguration(input, cnbClientId);
-
-      const updateOboardingState = await this.updateOnboardingState(input);
-
-      if (!updateOboardingState) {
-        return ErrorHandler.handleError(
-          `Error al actualizar el estado del onboarding para el sessionId: ${input.sessionId}`,
-          'confirm-data',
-        );
-      }
-
-      const response: ConfirmDataResponseDto = {
-        cnbClientId: cnbClientId,
-        sessionId: input.sessionId,
-        status: 'SUCCESS',
-      };
-
-      return response;
-    } catch (error) {
-      return ErrorHandler.handleError(error, 'confirm-data');
+  /**
+   * Validates a required field and throws an error if invalid
+   */
+  private validateRequiredField(
+    value: any,
+    fieldName: string,
+    errorCode: string,
+  ): void {
+    if (!value) {
+      throw this.createError(errorCode, `${fieldName} is required`);
     }
   }
 
   /**
-   * Retrieves the onboarding state using the provided input.
-   *
-   * @param input - The input for retrieving the onboarding state.
-   * @returns A promise that resolves to the onboarding state response.
+   * Validates a response from an external service
    */
+  private validateServiceResponse(
+    response: any,
+    errorCode: string,
+    errorMessage: string,
+  ): void {
+    if (!response) {
+      throw this.createError(errorCode, errorMessage);
+    }
+  }
+
+  /**
+   * Handles service operation with error management
+   */
+  private async handleServiceOperation<T>(
+    operation: () => Promise<T>,
+    errorCode: string,
+    errorMessage: string,
+  ): Promise<T> {
+    try {
+      const result = await operation();
+      this.validateServiceResponse(result, errorCode, errorMessage);
+      return result;
+    } catch (error) {
+      if (error instanceof Error && this.isCustomError(error)) {
+        throw error;
+      }
+      throw this.createError(errorCode, errorMessage, error);
+    }
+  }
+
+  /**
+   * Checks if an error is a custom error with code
+   */
+  private isCustomError(error: Error): boolean {
+    try {
+      const parsed = JSON.parse(error.message);
+      return !!parsed.code;
+    } catch {
+      return false;
+    }
+  }
+
+  private async prepareDataSignElectronic(
+    input: ConfirmDataInputDto,
+  ): Promise<ISaveElectronicSignatureResponseRedis> {
+    const { city, province, address } = formatAddress(input.establishment);
+    return await this.msaNbCnbOrqService.updateElectronicSign(
+      {
+        identificationNumber: input.identificationNumber,
+        city,
+        province,
+        address,
+      },
+      {
+        sessionId: input.sessionId,
+        trackingId: input.trackingId,
+        requestId: input.requestId,
+      },
+    );
+  }
+
+  async startConfirmData(
+    input: ConfirmDataInputDto,
+  ): Promise<ConfirmDataResponseDto> {
+    try {
+      this.validateInput(input);
+
+      const onboardingStateResponse = await this.getOnboardingState(input);
+      this.validateStateOnboarding(onboardingStateResponse);
+
+      const updateOboardingState = await this.updateOnboardingState(input);
+      this.validateServiceResponse(
+        updateOboardingState,
+        ErrorCodes.ONB_STEP_INVALID,
+        'Failed to update onboarding state',
+      );
+
+      const updateSignElectronic = await this.prepareDataSignElectronic(input);
+
+      if (!updateSignElectronic) {
+        return ErrorHandler.handleError(
+          {
+            code: ErrorCodes.REDIS_UPDATE_ERROR,
+            message:
+              'Failed to update electronic signature request data in msa-nb-cnb-orq',
+          },
+          'start-onboarding',
+        );
+      }
+
+      return {
+        onboardingSessionId: input.onboardingSessionId,
+        status: 'SUCCESS',
+      };
+    } catch (error) {
+      if (error instanceof Error && this.isCustomError(error)) {
+        const parsedError = JSON.parse(error.message);
+        return ErrorHandler.handleError(parsedError, this.CONTEXT);
+      }
+      return ErrorHandler.handleError(
+        {
+          code: ErrorCodes.SYS_PROCESS_FAILED,
+          message: 'Unexpected error during confirm data process',
+          details: error,
+        },
+        this.CONTEXT,
+      );
+    }
+  }
+
   private async getOnboardingState(
     input: ConfirmDataInputDto,
   ): Promise<GetStateOnboardingResponseDto> {
-    return lastValueFrom(
-      this.msaCoOnboardingStateService.getOnboardingState(input.sessionId),
+    const response = await this.handleServiceOperation(
+      async () =>
+        lastValueFrom(
+          this.msaCoOnboardingStateService.getOnboardingState(
+            input.onboardingSessionId,
+          ),
+        ),
+      ErrorCodes.ONB_GET_SESSION_FAIL,
+      'Failed to retrieve onboarding state',
     );
-  }
 
-  /**
-   * Saves the data configuration.
-   *
-   * @param input - The input for saving the data configuration.
-   * @returns A promise that resolves when the data configuration is saved successfully.
-   */
-  private async saveDataConfiguration(
-    input: ConfirmDataInputDto,
-    cnbClientId: string,
-  ): Promise<void> {
-    const dataConfiguration: DataConfigurationInputDto = {
-      configKey: 'establishment',
-      configData: input.establishment,
-      cnbClientId: cnbClientId,
-      updatedBy: 'system',
-      createdBy: 'system',
+    return {
+      ...response,
+      onboardingSessionId: response.sessionId,
     };
-
-    await lastValueFrom(
-      this.msaNbConfigurationService.saveDataConfiguration(dataConfiguration),
-    );
   }
 
-  /**
-   * Updates the onboarding state with the provided input.
-   *
-   * @param input - The input data for updating the onboarding state.
-   * @returns A promise that resolves to the response of updating the onboarding state.
-   */
   private async updateOnboardingState(
     input: ConfirmDataInputDto,
   ): Promise<UpdateDataOnboardingResponseDto> {
     const dataUpdateOnboarding: UpdateDataOboardingInputDto = {
-      sessionId: input.sessionId,
+      sessionId: input.onboardingSessionId,
       status: 'SUCCESS',
       data: {
         establishment: {
@@ -133,36 +197,71 @@ export class ConfirmDataService {
       },
     };
 
-    return lastValueFrom(
-      this.msaCoOnboardingStateService.updateOnboardingState(
-        dataUpdateOnboarding,
-        'confirm-data',
-      ),
+    return this.handleServiceOperation(
+      async () => {
+        return lastValueFrom(
+          this.msaCoOnboardingStateService.updateOnboardingState(
+            dataUpdateOnboarding,
+            this.CONTEXT,
+          ),
+        );
+      },
+      ErrorCodes.ONB_STEP_INVALID,
+      'Failed to update onboarding state',
     );
   }
 
-  /**
-   * Validates the state of onboarding data.
-   *
-   * @param dataOboardingState - The onboarding data state to validate.
-   * @returns A boolean indicating whether the state is valid or not.
-   */
   private validateStateOnboarding(
     dataOboardingState: GetStateOnboardingResponseDto,
-  ): boolean {
+  ): void {
+    this.validateRequiredField(
+      dataOboardingState,
+      'Onboarding state',
+      ErrorCodes.ONB_STATUS_INVALID,
+    );
+
     if (
-      !dataOboardingState ||
-      typeof dataOboardingState !== 'object' ||
-      !('data' in dataOboardingState)
+      !dataOboardingState.data ||
+      typeof dataOboardingState.data !== 'object'
     ) {
-      return false;
+      throw this.createError(
+        ErrorCodes.ONB_DATA_INCOMPLETE,
+        'Invalid onboarding state data structure',
+      );
     }
 
-    const { data } = dataOboardingState;
-    if (typeof data !== 'object' || data === null) {
-      return false;
-    }
+    this.validateRequiredField(
+      dataOboardingState.data['start-onb-cnb'],
+      'start-onb-cnb data',
+      ErrorCodes.ONB_DATA_INCOMPLETE,
+    );
+  }
 
-    return true;
+  private validateInput(input: ConfirmDataInputDto): void {
+    this.validateRequiredField(
+      input,
+      'Input data',
+      ErrorCodes.ONB_DATA_INCOMPLETE,
+    );
+    this.validateRequiredField(
+      input.onboardingSessionId,
+      'Session ID',
+      ErrorCodes.ONB_DATA_INCOMPLETE,
+    );
+    this.validateRequiredField(
+      input.establishment,
+      'Establishment data',
+      ErrorCodes.ONB_DATA_INCOMPLETE,
+    );
+    this.validateRequiredField(
+      input.establishment.fullAddress,
+      'Establishment full address',
+      ErrorCodes.ONB_DATA_INCOMPLETE,
+    );
+    this.validateRequiredField(
+      input.establishment.numberEstablishment,
+      'Establishment number',
+      ErrorCodes.ONB_DATA_INCOMPLETE,
+    );
   }
 }

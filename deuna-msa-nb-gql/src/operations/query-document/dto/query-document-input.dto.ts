@@ -8,3 +8,8 @@ export class QueryDocumentInput {
   @IsNotEmpty()
   templateName: string;
 }
+
+export class QueryDataDocument {
+  presignedUrl: string;
+  b64encoded: string;
+}

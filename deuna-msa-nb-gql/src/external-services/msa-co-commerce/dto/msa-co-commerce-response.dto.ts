@@ -46,9 +46,8 @@ export class RucDetails {
 }
 
 export class CommerceResponseDto {
-  comerceId: string;
-  companyName: string;
-  establishment: Establishment[];
+  id: string;
+  name: string;
   fullName: string;
   principalContact: string;
   username: string;

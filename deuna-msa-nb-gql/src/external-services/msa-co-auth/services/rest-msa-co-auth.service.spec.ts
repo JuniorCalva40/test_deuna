@@ -4,7 +4,9 @@ import { ConfigService } from '@nestjs/config';
 import { of, throwError } from 'rxjs';
 import { RestMsaCoAuthService } from './rest-msa-co-auth.service';
 import { GenerateOtpInputDto } from '../dto/msa-co-auth-input.dto';
-import { AxiosResponse } from 'axios';
+import { AxiosResponse, AxiosError } from 'axios';
+import { errorCodes as msaCoAuthErrorCodes } from '../constants/constants';
+import { ErrorCodes } from '@deuna/tl-common-nd';
 
 describe('RestMsaCoAuthService', () => {
   let service: RestMsaCoAuthService;
@@ -54,7 +56,6 @@ describe('RestMsaCoAuthService', () => {
         email: 'test@example.com',
         deviceName: 'Test Device',
         commerceName: 'Test Commerce',
-        notificationChannel: ['SMS', 'EMAIL'],
       };
 
       configService.get.mockReturnValue('http://test-url');
@@ -80,7 +81,6 @@ describe('RestMsaCoAuthService', () => {
         email: 'test@example.com',
         deviceName: 'Test Device',
         commerceName: 'Test Commerce',
-        notificationChannel: ['SMS', 'EMAIL'],
       };
 
       const errorResponse = {
@@ -109,6 +109,66 @@ describe('RestMsaCoAuthService', () => {
             'Response data: {"message":"Bad Request"}',
           );
           loggerErrorSpy.mockRestore();
+          done();
+        },
+      });
+    });
+
+    it('should use EMAIL_NOTIFICATION as default notification channel', (done) => {
+      const mockInput: GenerateOtpInputDto = {
+        businessDeviceId: 'test-device-id',
+        requestId: 'test-request-id',
+        email: 'test@example.com',
+        deviceName: 'Test Device',
+        commerceName: 'Test Commerce',
+      };
+
+      const expectedData = {
+        ...mockInput,
+        phoneNumber: '',
+        notificationChannel: ['EMAIL_NOTIFICATION'],
+      };
+
+      const mockResponse = { status: 'SUCCESS' };
+      const axiosResponse: AxiosResponse = {
+        data: mockResponse,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: { headers: undefined },
+      };
+
+      httpService.post.mockReturnValue(of(axiosResponse));
+
+      service.generateOtp(mockInput).subscribe({
+        next: () => {
+          expect(httpService.post).toHaveBeenCalledWith(
+            'http://api.example.com/microcommerce-otp/contract/generate',
+            expectedData,
+            expect.any(Object),
+          );
+          done();
+        },
+        error: done,
+      });
+    });
+
+    it('should handle a generic error without a response object', (done) => {
+      const genericError = new Error('Network Error');
+      httpService.post.mockReturnValue(throwError(() => genericError));
+      const loggerSpy = jest.spyOn(service['logger'], 'error');
+
+      service.generateOtp({} as any).subscribe({
+        error: (err) => {
+          expect(err.message).toContain('Network Error');
+          expect(loggerSpy).toHaveBeenCalledWith(
+            expect.stringContaining(
+              'generateOtp failed in RestMsaCoAuthService: Network Error',
+            ),
+          );
+          expect(loggerSpy).not.toHaveBeenCalledWith(
+            expect.stringContaining('Response status'),
+          );
           done();
         },
       });
@@ -189,12 +249,44 @@ describe('RestMsaCoAuthService', () => {
         error: done,
       });
     });
+
+    it('should handle error with remaining attempts', (done) => {
+      const errorCode = ErrorCodes.MIC_ONB_STATUS_OTP_VERIFY_TWO_REMAINING_ATTEMPT;
+      const errorResponse = new AxiosError(
+        'Request failed with status code 400',
+        '400',
+        undefined,
+        {},
+        {
+          data: {
+            errors: [{ code: errorCode }],
+          },
+          status: 400,
+          statusText: 'Bad Request',
+          headers: {},
+          config: { headers: undefined },
+        },
+      );
+
+      httpService.put.mockReturnValue(throwError(() => errorResponse));
+
+      service.validateOtp('testDevice', 'testRequest', '123456').subscribe({
+        error: (error) => {
+          expect(error.remainingVerifyAttempts).toBe(
+            msaCoAuthErrorCodes[errorCode],
+          );
+          expect(error.message).toContain(
+            'Failed to post validateOtp state in RestMsaCoAuthService',
+          );
+          done();
+        },
+      });
+    });
   });
 });
 
 describe('RestMsaCoAuthService EnvVars Nor Set', () => {
   let service: RestMsaCoAuthService;
-  let configService: jest.Mocked<ConfigService>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -210,29 +302,34 @@ describe('RestMsaCoAuthService EnvVars Nor Set', () => {
         {
           provide: ConfigService,
           useValue: {
-            get: jest.fn(),
+            get: jest.fn().mockReturnValue(undefined),
           },
         },
       ],
     }).compile();
 
     service = module.get<RestMsaCoAuthService>(RestMsaCoAuthService);
-    configService = module.get(ConfigService) as jest.Mocked<ConfigService>;
   });
 
-  it('should throw error when MSA_CO_AUTH_URL is not defined', () => {
-    configService.get.mockReturnValue(undefined);
-
-    expect(() =>
-      service.validateOtp('testDevice', 'testRequest', '123456'),
-    ).toThrowError(`MSA_CO_AUTH_URL is not defined in the configuration`);
+  it('should throw an error during generateOtp if apiUrl is not configured', (done) => {
+    service.generateOtp({} as any).subscribe({
+      error: (error) => {
+        expect(error.message).toBe(
+          'MSA_CO_AUTH_URL is not defined in the configuration',
+        );
+        done();
+      },
+    });
   });
 
-  it('should throw error when MSA_CO_AUTH_URL is not defined', () => {
-    configService.get.mockReturnValue(undefined);
-
-    expect(() => service.generateOtp({} as GenerateOtpInputDto)).toThrowError(
-      `MSA_CO_AUTH_URL is not defined in the configuration`,
-    );
+  it('should throw an error during validateOtp if apiUrl is not configured', (done) => {
+    service.validateOtp('a', 'b', 'c').subscribe({
+      error: (error) => {
+        expect(error.message).toBe(
+          'MSA_CO_AUTH_URL is not defined in the configuration',
+        );
+        done();
+      },
+    });
   });
 });

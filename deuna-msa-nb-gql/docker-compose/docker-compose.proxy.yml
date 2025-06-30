@@ -1,0 +1,60 @@
+---
+
+services:
+  app:
+    image: ${COMPOSE_PROJECT_NAME}:latest
+    container_name: cnb-gql
+    working_dir: /app
+    command: /bin/ash -ci "npm run start:dev"
+    platform: ${PLATFORM}
+    ports:
+      - 3000:3000
+    environment:
+      - NODE_ENV=development
+      - CLOUD_SERVICE_PROVIDER=none
+      - SERVICE_NAME=nb-gql
+      - SERVICE_PORT=3000
+      - ANONYMOUS_AUTH_SERVICE_URL='http://localhost:4000'
+      - AUTH0_NAMESPACE=http://deuna.merchants.com
+      - AUTH_SERVICE_URL='http://localhost:4000'
+      - MSA_MC_BO_CLIENT_SERVICE_URL='http://localhost:8080/proxy/deuna-bo-mc-client.merchant.eks.local'
+      - MSA_CO_AUTH_SERVICE_TYPE='rest'
+      - MSA_CO_AUTH_URL='http://localhost:8080/proxy/deuna-msa-co-auth.commerces.svc.cluster.local'
+      - MSA_CO_CALIFICATION_SERVICE_TYPE='rest'
+      - MSA_CO_CALIFICATION_URL='http://localhost:8080/proxy/deuna-msa-co-calification.svc.cluster.local'
+      - MSA_CO_COMMERCE_SERVICE_TYPE='rest'
+      - MSA_CO_COMMERCE_SERVICE_URL='http://localhost:8080/proxy/deuna-msa-co-commerce.commerces.svc.cluster.local'
+      - MSA_CO_DOCUMENT_SERVICE_TYPE='rest'
+      - MSA_CO_DOCUMENT_URL='http://localhost:8080/proxy/deuna-msa-co-document.commerces.svc.cluster.local'
+      - MSA_CO_INVOICE_SERVICE_TYPE='mock'
+      - MSA_CO_INVOICE_API_URL='http://localhost:8088'
+      - MSA_CO_ONBOARDING_STATUS_SERVICE_TYPE='rest'
+      - MSA_CO_ONBOARDING_STATUS_URL='http://localhost:8080/proxy/deuna-msa-co-onboarding-status.commerces.svc.cluster.local'
+      - MSA_CO_TRANSFER_ORCHESTRATION_SERVICE_TYPE='rest'
+      - MSA_CO_TRANSFER_ORCHESTRATION_URL='http://localhost:8080/proxy/deuna-msa-co-transfer-orchestation.commerces.svc.cluster.local'
+      - BUSSINES_RULE_SERVICE_TYPE='rest'
+      - MSA_NB_CLIENT_SERVICE_TYPE='rest'
+      - MSA_NB_CLIENT_SERVICE_URL='http://localhost:8080/proxy/deuna-msa-nb-client.cnb.svc.cluster.local/api/v1'
+      - MSA_NB_CONFIGURATION_SERVICE_TYPE='rest'
+      - MSA_NB_CONFIGURATION_URL='http://localhost:8080/proxy/deuna-msa-nb-configuration.cnb.svc.cluster.local'
+      - MSA_NB_ORQ_TRANSACTION_URL='http://localhost:8080/proxy/deuna-msa-nb-orq-transaction.cnb.svc.cluster.local/api/v1'
+      - MSA_TL_NOTIFICATION_EMAIL_SERVICE_TYPE='rest'
+      - MSA_TL_OTP_SERVICE_URL='http://localhost:8084'
+      - MSA_TL_TEMPLATE_GENERATOR_SERVICE_TYPE='rest'
+      - MSA_TL_TEMPLATE_GENERATOR_URL='http://localhost:8080/proxy/deuna-tl-template-generator.core.eks.local'
+      - USER_SERVICE_URL='http://localhost:4000'
+      - KAFKA_URLS='localhost:9091'
+      - KAFKA_SSL_ENABLED='false'
+      - SASL_USERNAME=
+      - SASL_PASSWORD=
+      - HTTP_CLIENT_RETRY=3
+      - HTTP_CLIENT_TIMEOUT=30000
+    volumes:
+      - ../:/app:rw
+      - backend-packages:/app/node_modules
+  
+volumes:
+  postgres_data:  
+  backend-packages:
+    name: ${COMPOSE_PROJECT_NAME}-packages
+    external: true

@@ -5,9 +5,10 @@ export class AuthToken {
   tokenType: string;
   role: string;
   data: {
+    ip: string,
     username: string;
     personInfo: {
-      identification: string;
+      identification?: string;
     };
   };
 }

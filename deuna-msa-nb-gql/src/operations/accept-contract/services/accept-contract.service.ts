@@ -12,11 +12,15 @@ import { IMsaCoOnboardingStatusService } from '../../../external-services/msa-co
 import { MSA_CO_ONBOARDING_STATE_SERVICE } from '../../../external-services/msa-co-onboarding-status/providers/msa-co-onboarding-status-provider';
 import { MSA_CO_AUTH_SERVICE } from '../../../external-services/msa-co-auth/providers/msa-co-auth.provider';
 import { IMsaCoAuthService } from '../../../external-services/msa-co-auth/interfaces/msa-co-auth-service.interface';
-import { GetStateOnboardingResponseDto } from 'src/operations/confirm-data/dto/confirm-data-response.dto';
+import { GetStateOnboardingResponseDto } from '../../../operations/confirm-data/dto/confirm-data-response.dto';
 import { v4 as uuidv4 } from 'uuid';
 import { ErrorHandler } from '../../../utils/error-handler.util';
-import { maskEmail } from '../../../utils/email_masker.util';
+import { maskEmail } from '../../../utils/email-masker.util';
 import { ErrorCodes } from '../../../common/constants/error-codes';
+import { IMsaNbClientService } from '../../../external-services/msa-nb-cnb-service/interfaces/msa-nb-client-service.interface';
+import { MSA_NB_CLIENT_SERVICE } from '../../../external-services/msa-nb-cnb-service/providers/msa-nb-client-service.provider';
+import { PreApprovedState } from '../../../common/constants/common';
+import { UpdateClientCnbInput } from '../dto/update-client-cnb.input.dto';
 
 @Injectable()
 export class AcceptContractService {
@@ -27,16 +31,53 @@ export class AcceptContractService {
     @Inject(MSA_CO_ONBOARDING_STATE_SERVICE)
     private readonly msaCoOnboardingStateService: IMsaCoOnboardingStatusService,
     @Inject(MSA_CO_AUTH_SERVICE)
-    private readonly msaTlOtpService: IMsaCoAuthService,
+    private readonly msaCoAuthService: IMsaCoAuthService,
+    @Inject(MSA_NB_CLIENT_SERVICE)
+    private cnbClientServiceNb: IMsaNbClientService,
   ) {}
+
+  private async updateClientCnbStatus(
+    clientId: string,
+    remainingAttempts: number,
+  ): Promise<void> {
+    remainingAttempts = remainingAttempts - 1;
+    let status = PreApprovedState.REMAINING;
+    if (remainingAttempts === 0) {
+      status = PreApprovedState.BLOCKED_PERMANENT;
+    }
+
+    const input: UpdateClientCnbInput = {
+      clientId,
+      status,
+      remainingAttemptsOnb: remainingAttempts,
+    };
+
+    try {
+      await lastValueFrom(this.cnbClientServiceNb.updateClientStatus(input));
+    } catch (error) {
+      this.logger.error(
+        `Error updating remaining attempts client status: ${error.message}`,
+      );
+      this.handleError(
+        'Error updating remaining attempts client-cnb status',
+        ErrorCodes.CNB_SERVICE_ERROR,
+      );
+    }
+  }
+
+  private handleError(message: string, errorCode: string): never {
+    this.logger.error(`Error: ${message}`);
+    return ErrorHandler.handleError(message, errorCode);
+  }
 
   async startAcceptContract(
     input: AcceptContractDataInputDto,
     email: string,
+    identification: string,
   ): Promise<AcceptContractDataResponseDto> {
     try {
-      await this.getAndValidateOnboardingState(input);
-      const requestId = this.generateRequestId();
+      await this.getAndValidateOnboardingState(input, identification);
+      const requestId = uuidv4();
       const otpResponse = await this.sendOtp(input, requestId, email);
 
       if (!otpResponse) {
@@ -46,13 +87,16 @@ export class AcceptContractService {
         );
       }
 
+      this.logger.log(
+        `OTP sent successfully for onboardingSessionId: ${input.onboardingSessionId} and requestId: ${requestId}`,
+      );
+
       const bodyUpdateOnboardingState = {
         requestId: requestId,
         email: email,
         deviceName: input.deviceName,
         commerceName: this.commerceName,
-        notificationChannel: ['SMS', 'EMAIL'],
-        sessionId: input.sessionId,
+        sessionId: input.onboardingSessionId,
         businessDeviceId: input.businessDeviceId,
       };
 
@@ -75,7 +119,7 @@ export class AcceptContractService {
       }
 
       const response: AcceptContractDataResponseDto = {
-        sessionId: input.sessionId,
+        onboardingSessionId: input.onboardingSessionId,
         requestId: requestId,
         otpResponse: otpResponse,
         email: maskEmail(email),
@@ -90,29 +134,54 @@ export class AcceptContractService {
 
   private async getAndValidateOnboardingState(
     input: AcceptContractDataInputDto,
+    identification: string,
   ): Promise<void> {
-    const onboardingStateResponse = await lastValueFrom(
+    const response = await lastValueFrom(
       this.msaCoOnboardingStateService
-        .getOnboardingState(input.sessionId)
+        .getOnboardingState(input.onboardingSessionId)
         .pipe(
           catchError((error) =>
-            this.handleError(error.message, ErrorCodes.ONB_STATUS_INVALID),
+            this.handleError(error.message, ErrorCodes.ONB_GET_SESSION_FAIL),
           ),
         ),
     );
 
-    if (!onboardingStateResponse.data) {
+    if (!response.data) {
       return this.handleError(
         'Invalid onboarding state: missing information for the session',
         ErrorCodes.ONB_DATA_INCOMPLETE,
       );
     }
 
-    this.validateOnboardingState(onboardingStateResponse);
-  }
+    const cnbClient = await lastValueFrom(
+      this.cnbClientServiceNb
+        .getClientByIdentification(identification)
+        .pipe(
+          catchError((error) =>
+            this.handleError(error.message, ErrorCodes.CNB_SERVICE_ERROR),
+          ),
+        ),
+    );
 
-  private generateRequestId(): string {
-    return uuidv4();
+    if (!cnbClient) {
+      return this.handleError(
+        'Invalid onboarding state: cnb-client not found',
+        ErrorCodes.CNB_CLIENT_NOT_FOUND,
+      );
+    }
+
+    const remainingAttemptsOnb = cnbClient.remainingAttemptsOnb;
+
+    const onboardingStateResponse = {
+      ...response,
+      onboardingSessionId: response.sessionId,
+    };
+
+    this.validateOnboardingStateErrors(
+      onboardingStateResponse,
+      remainingAttemptsOnb,
+      cnbClient.id,
+    );
   }
 
   private async sendOtp(
@@ -126,11 +195,10 @@ export class AcceptContractService {
       email: email,
       deviceName: data.deviceName,
       commerceName: this.commerceName,
-      notificationChannel: ['SMS', 'EMAIL'],
     };
 
-    const otpResponse = await lastValueFrom(
-      this.msaTlOtpService
+    return lastValueFrom(
+      this.msaCoAuthService
         .generateOtp(otpRequest)
         .pipe(
           catchError((error) =>
@@ -138,15 +206,27 @@ export class AcceptContractService {
           ),
         ),
     );
-
-    return otpResponse;
   }
 
-  private validateOnboardingState(
+  private validateOnboardingStateErrors(
     onboardingState: GetStateOnboardingResponseDto,
+    remainingAttemptsOnb: number,
+    clientId: string,
   ): void {
+    if (!onboardingState) {
+      this.handleError(
+        'The onboarding state is invalid',
+        ErrorCodes.ONB_STATUS_INVALID,
+      );
+    }
     const states = onboardingState.data;
-    const requiredSteps = ['start-onb-cnb', 'confirm-data', 'accept-billing'];
+    const requiredSteps = [
+      'start-onb-cnb',
+      'confirm-data',
+      'cnb-facial',
+      'cnb-liveness',
+      'cnb-document',
+    ];
 
     for (const step of requiredSteps) {
       if (!states[step] || states[step].status !== 'SUCCESS') {
@@ -156,11 +236,54 @@ export class AcceptContractService {
         );
       }
     }
-    this.commerceName = onboardingState.data['start-onb-cnb'].data.fullName;
-  }
 
-  private handleError(message: string, errorCode: string): never {
-    this.logger.error(`Error: ${message}`);
-    return ErrorHandler.handleError(message, errorCode);
+    if (remainingAttemptsOnb <= 0) {
+      return this.handleError(
+        'Client cnb is blocked permanently, remaining attempts onboarding is 0',
+        ErrorCodes.ONB_BLOCKED_PERMANENTLY,
+      );
+    }
+
+    this.commerceName = onboardingState.data['start-onb-cnb'].data.fullName;
+
+    const cnbResultValidation =
+      onboardingState.data['cnb-document'].data.statusResultValidation;
+    if (cnbResultValidation === 'PENDING') {
+      return this.handleError(
+        'Invalid onboarding state: the validation document step has not been completed successfully',
+        ErrorCodes.ONB_VALIDATE_DOCUMENT_ID_PENDING,
+      );
+    }
+
+    if (cnbResultValidation !== 'FINALIZED_OK') {
+      this.updateClientCnbStatus(clientId, remainingAttemptsOnb);
+
+      return this.handleError(
+        'Invalid onboarding state: the validation document step has not been completed successfully',
+        ErrorCodes.ONB_VALIDATE_IDENTITY_ID_FAILED,
+      );
+    }
+
+    const cnbFacialResultValidation =
+      onboardingState.data['cnb-facial'].data.statusResultValidation;
+    if (cnbFacialResultValidation !== 'FINALIZED_OK') {
+      this.updateClientCnbStatus(clientId, remainingAttemptsOnb);
+
+      return this.handleError(
+        'Invalid onboarding state: the validation facial step has not been completed successfully',
+        ErrorCodes.ONB_VALIDATE_IDENTITY_ID_FAILED,
+      );
+    }
+
+    const cnbLivenessResultValidation =
+      onboardingState.data['cnb-liveness'].data.statusResultValidation;
+    if (cnbLivenessResultValidation !== 'FINALIZED_OK') {
+      this.updateClientCnbStatus(clientId, remainingAttemptsOnb);
+
+      return this.handleError(
+        'Invalid onboarding state: the validation identity step has not been completed successfully',
+        ErrorCodes.ONB_VALIDATE_IDENTITY_ID_FAILED,
+      );
+    }
   }
 }

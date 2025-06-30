@@ -1,10 +1,13 @@
 import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
-import { Logger } from '@deuna/tl-logger-nd';
 import { json } from 'express';
+import { Logger } from '@deuna/tl-logger-nd';
+import { AppModule } from './app.module';
+import { SERVICE_NAME } from './common/constants/common';
+// Add this line to import the reflect-metadata package for helper/FieldWithApiProperty.ts
+import 'reflect-metadata';
 
 const logger = new Logger({
-  context: process.env.SERVICE_NAME || 'Microservice Gql',
+  context: SERVICE_NAME,
 });
 
 async function bootstrap() {
@@ -30,7 +33,7 @@ async function bootstrap() {
     },
   );
 
-  await app.listen(parseInt(process.env.PORT, 10) || 80);
+  await app.listen(parseInt(process.env.SERVICE_PORT, 10) || 80);
 
   logger.log(`##### Microservice is listening on:: ${await app.getUrl()}`);
 }

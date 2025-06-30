@@ -13,7 +13,7 @@ export class GenerateOtpRespDto {
 @ObjectType()
 export class AcceptContractDataResponseDto extends StandardizedResponse {
   @Field()
-  sessionId: string;
+  onboardingSessionId: string;
 
   @Field()
   requestId: string;

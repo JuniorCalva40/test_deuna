@@ -37,7 +37,9 @@ describe('ResendOtpResolver', () => {
 
   describe('resendOtp', () => {
     it('should call service.resendOtp and return the result', async () => {
-      const input: ResendOtpInput = { sessionId: 'test-session-id' };
+      const input: ResendOtpInput = {
+        onboardingSessionId: 'test-session-id',
+      };
       const expectedResponse: ResendOtpResponse = {
         message: 'OTP resent successfully',
         expirationDate: '2023-05-01T12:00:00Z',

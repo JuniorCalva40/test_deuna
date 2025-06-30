@@ -48,13 +48,13 @@ describe('AcceptContractResolver', () => {
   describe('acceptContract', () => {
     it('debería llamar a acceptContractService.startAcceptContract y devolver el resultado', async () => {
       const mockInput: AcceptContractDataInputDto = {
-        sessionId: 'test-session-id',
+        onboardingSessionId: 'test-session-id',
         businessDeviceId: 'test-device-id',
         deviceName: 'test-device-name',
       };
 
       const expectedResponse: AcceptContractDataResponseDto = {
-        sessionId: 'test-session-id',
+        onboardingSessionId: 'test-session-id',
         requestId: 'test-request-id',
         otpResponse: {
           expirationDate: '2023-06-15T10:00:00Z',
@@ -69,24 +69,36 @@ describe('AcceptContractResolver', () => {
       );
 
       const result = await resolver.acceptContract(mockInput, {
-        req: { headers: { 'user-person': { email: 'test@test.com' } } },
+        req: {
+          headers: {
+            'user-person': {
+              email: 'test@test.com',
+            },
+            'client-info': {
+              identification: '1234567890',
+            },
+          },
+        },
       });
 
       expect(acceptContractService.startAcceptContract).toHaveBeenCalledWith(
         mockInput,
         'test@test.com',
+        '1234567890',
       );
       expect(result).toEqual(expectedResponse);
     });
 
     it('should handle errors from acceptContractService.startAcceptContract', async () => {
       const mockInput: AcceptContractDataInputDto = {
-        sessionId: 'test-session-id',
+        onboardingSessionId: 'test-session-id',
         businessDeviceId: 'test-device-id',
         deviceName: 'test-device-name',
       };
 
-      const expectedError = new Error('Test error');
+      const expectedError = new Error(
+        'Customer info is required, customer info is missing',
+      );
 
       acceptContractService.startAcceptContract.mockRejectedValue(
         expectedError,
@@ -94,7 +106,36 @@ describe('AcceptContractResolver', () => {
 
       await expect(
         resolver.acceptContract(mockInput, {
-          req: { headers: { 'user-person': { email: 'test@test.com' } } },
+          req: {
+            headers: {
+              'user-person': {
+                email: 'test@test.com',
+              },
+            },
+          },
+        }),
+      ).rejects.toThrow(expectedError);
+    });
+
+    it('should throw an error when customerInfo is missing', async () => {
+      const mockInput: AcceptContractDataInputDto = {
+        onboardingSessionId: 'test-session-id',
+        businessDeviceId: 'test-device-id',
+        deviceName: 'test-device-name',
+      };
+
+      const expectedError = new Error(
+        'Customer info is required, customer info is missing',
+      );
+      await expect(
+        resolver.acceptContract(mockInput, {
+          req: {
+            headers: {
+              'user-person': {
+                email: 'test@test.com',
+              },
+            },
+          },
         }),
       ).rejects.toThrow(expectedError);
     });

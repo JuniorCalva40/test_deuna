@@ -1,5 +1,43 @@
 import { ObjectType, Field, Int, Float } from '@nestjs/graphql';
+import { GraphQLJSONObject } from 'graphql-type-json';
 import { EstablishmentInputDto } from '../../../utils/establishment.dto';
+
+@ObjectType()
+class BaseOnboardingResponse {
+  @Field()
+  sessionId: string;
+
+  @Field()
+  securitySeed: string;
+
+  @Field()
+  identityId: string;
+
+  @Field()
+  onbType: string;
+
+  @Field()
+  status: string;
+
+  @Field()
+  publicKey: string;
+
+  @Field()
+  createdAt: Date;
+
+  @Field()
+  updatedAt: Date;
+}
+
+@ObjectType()
+class BaseConfigurationResponse extends BaseOnboardingResponse {
+  @Field()
+  cnbClientId: string;
+
+  @Field()
+  enabled: boolean;
+}
+
 @ObjectType()
 export class StartOnbCnbData {
   @Field(() => Float)
@@ -28,7 +66,7 @@ export class DataStateCnb {
 }
 
 @ObjectType()
-export class ConfirmDataResponseDto {
+export class OnboardingStatusResponseDto extends BaseOnboardingResponse {
   @Field(() => [String])
   successSteps: string[];
 
@@ -49,49 +87,19 @@ export class ConfirmDataResponseDto {
 
   @Field(() => [String])
   processingFailure: string[];
-
-  @Field()
-  status: string;
-
-  @Field()
-  onbType: string;
 }
 
 @ObjectType()
-export class GetStateOnboardingResponseDto {
+export class GetStateOnboardingResponseDto extends BaseConfigurationResponse {
   @Field(() => Int)
   id?: number;
 
-  @Field()
-  sessionId: string;
-
-  @Field()
-  securitySeed: string;
-
-  @Field()
-  identityId: string;
-
-  @Field()
-  onbType: string;
-
   @Field(() => DataStateCnb)
   data: DataStateCnb;
-
-  @Field()
-  status: string;
-
-  @Field()
-  publicKey: string;
-
-  @Field()
-  createdAt: Date;
-
-  @Field()
-  updatedAt: Date;
 }
 
 @ObjectType()
-export class DataConfigurationResponse {
+export class DataConfigurationResponse extends BaseConfigurationResponse {
   @Field()
   id: string;
 
@@ -100,12 +108,6 @@ export class DataConfigurationResponse {
 
   @Field()
   configData: EstablishmentInputDto;
-
-  @Field()
-  cnbClientId: string;
-
-  @Field()
-  enabled: boolean;
 }
 
 @ObjectType()
@@ -114,62 +116,32 @@ export class InitOnboardingResponseDto {
   sessionId: string;
 }
 
-@ObjectType()
-export class StartOnboardingResponseDto {
-  @Field(() => [String])
-  successSteps: string[];
-
-  @Field(() => [String])
-  requiredSteps: string[];
-
-  @Field(() => [String])
-  optionalSteps: string[];
-
-  @Field(() => [String])
-  failureSteps: string[];
-
-  @Field(() => [String])
-  successIdentityValidationSteps: string[];
-
-  @Field(() => [String])
-  standbyIdentityValidationSteps: string[];
-
-  @Field(() => [String])
-  processingFailure: string[];
-
-  @Field()
+export interface ClientData {
+  cnbClientId: string;
+  email: string;
+  companyName: string;
+  ruc: string;
+  businessAddress: string;
+  legalRepresentative: string;
+  establishment: {
+    fullAdress: string;
+    numberEstablishment: string;
+  };
+  identityId: string;
+  username: string;
+  commerceId: string;
+  trackingId: string;
   status: string;
-
-  @Field()
-  onbType: string;
 }
 
 @ObjectType()
-export class SetStepValidateOtpResponseDto {
-  @Field(() => [String])
-  successSteps: string[];
+export class GetAllOnboardingResponseDto extends BaseOnboardingResponse {
+  @Field(() => Int)
+  id: number;
 
-  @Field(() => [String])
-  requiredSteps: string[];
+  @Field(() => GraphQLJSONObject)
+  data: Record<string, any>;
 
-  @Field(() => [String])
-  optionalSteps: string[];
-
-  @Field(() => [String])
-  failureSteps: string[];
-
-  @Field(() => [String])
-  successIdentityValidationSteps: string[];
-
-  @Field(() => [String])
-  standbyIdentityValidationSteps: string[];
-
-  @Field(() => [String])
-  processingFailure: string[];
-
-  @Field()
-  status: string;
-
-  @Field()
-  onbType: string;
+  @Field({ nullable: true })
+  asyncData?: string;
 }

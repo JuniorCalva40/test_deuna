@@ -1,13 +1,14 @@
 import { Field, InputType, ObjectType } from '@nestjs/graphql';
 import { IsNotEmpty, IsString } from 'class-validator';
 import { StandardizedResponse } from '../../../utils/standar-response.dto';
+import { PreApprovedState } from 'src/common/constants/common';
 
 @InputType()
 export class ResendOtpInput {
   @Field()
   @IsNotEmpty()
   @IsString()
-  sessionId: string;
+  onboardingSessionId: string;
 }
 
 @ObjectType()
@@ -28,5 +29,22 @@ export class BodySendOtpDto {
   commerceName: string;
   email: string;
   requestId: string;
-  notificationChannel: string[];
+}
+
+export interface ClientInfoResp {
+  cnbClientId: string;
+  email: string;
+  companyName: string;
+  ruc: string;
+  businessAddress: string;
+  legalRepresentative: string;
+  establishment: {
+    fullAdress: string;
+    numberEstablishment: string;
+  };
+  identityId: string;
+  username: string;
+  commerceId: string;
+  trackingId: string;
+  status: PreApprovedState;
 }

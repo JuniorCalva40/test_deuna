@@ -1,6 +1,7 @@
 import { IsString, Length } from 'class-validator';
 import { ObjectType, Field, InputType } from '@nestjs/graphql';
 import { StandardizedResponse } from '../../../utils/standar-response.dto';
+import { PreApprovedState } from 'src/common/constants/common';
 
 @InputType()
 export class ValidateOtpInputDto {
@@ -11,7 +12,7 @@ export class ValidateOtpInputDto {
 
   @IsString()
   @Field()
-  sessionId: string;
+  onboardingSessionId: string;
 
   @IsString()
   @Field()
@@ -38,4 +39,22 @@ export class ValidateOtpResponseDto extends StandardizedResponse {
 
   @Field(() => DataGenerateOtpRespDto)
   otpResponse: DataGenerateOtpRespDto;
+}
+
+export interface ClientDataResp {
+  cnbClientId: string;
+  email: string;
+  companyName: string;
+  ruc: string;
+  businessAddress: string;
+  legalRepresentative: string;
+  establishment: {
+    fullAdress: string;
+    numberEstablishment: string;
+  };
+  identityId: string;
+  username: string;
+  commerceId: string;
+  trackingId: string;
+  status: PreApprovedState;
 }

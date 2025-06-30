@@ -1,16 +1,18 @@
 import { Observable } from 'rxjs';
 import {
+  DocumentValidationInputDto,
+  FingeprintCodeInputDto,
   InitOnboardingInputDto,
   SetStepAcceptContractInputDto,
   StartOnboardingInputDto,
   UpdateDataOnboardingInputDto,
 } from '../dto/msa-co-onboarding-status-input.dto';
 import {
-  ConfirmDataResponseDto,
   GetStateOnboardingResponseDto,
   InitOnboardingResponseDto,
-  SetStepValidateOtpResponseDto,
-  StartOnboardingResponseDto,
+  ClientData,
+  GetAllOnboardingResponseDto,
+  OnboardingStatusResponseDto,
 } from '../dto/msa-co-onboarding-status-response.dto';
 
 /**
@@ -24,7 +26,7 @@ export interface IMsaCoOnboardingStatusService {
   updateOnboardingState(
     input: UpdateDataOnboardingInputDto,
     step: string,
-  ): Observable<ConfirmDataResponseDto>;
+  ): Observable<OnboardingStatusResponseDto>;
 
   initOnboarding(
     input: InitOnboardingInputDto,
@@ -32,21 +34,11 @@ export interface IMsaCoOnboardingStatusService {
 
   startOnboarding(
     input: StartOnboardingInputDto,
-  ): Observable<StartOnboardingResponseDto>;
+  ): Observable<OnboardingStatusResponseDto>;
 
-  getClientDataFromStartOnboardingState(sessionId: string): Observable<{
-    cnbClientId: string;
-    email: string;
-    companyName: string;
-    ruc: string;
-    businessAddress: string;
-    legalRepresentative: string;
-    identityId: string;
-    establishment: {
-      fullAdress: string;
-      numberEstablishment: string;
-    };
-  }>;
+  getClientDataFromStartOnboardingState(
+    sessionId: string,
+  ): Observable<ClientData>;
 
   getOtpDataFromValidateOtpState(
     sessionId: string,
@@ -54,12 +46,24 @@ export interface IMsaCoOnboardingStatusService {
 
   setStepAcceptContract(
     data: SetStepAcceptContractInputDto,
-  ): Observable<ConfirmDataResponseDto>;
+  ): Observable<OnboardingStatusResponseDto>;
 
   setStepValidateOtp(
     sessionId: string,
     otp: string,
-  ): Observable<SetStepValidateOtpResponseDto>;
+  ): Observable<OnboardingStatusResponseDto>;
+
+  setFingerprintStep(
+    data: FingeprintCodeInputDto,
+  ): Observable<OnboardingStatusResponseDto>;
+
+  setDocumentValidationStep(
+    data: DocumentValidationInputDto,
+  ): Observable<OnboardingStatusResponseDto>;
 
   completeOnboarding(sessionId: string): Observable<any>;
+
+  getCompleteOnboardingStatus(
+    sessionId: string,
+  ): Observable<GetAllOnboardingResponseDto>;
 }

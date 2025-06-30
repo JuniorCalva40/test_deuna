@@ -4,9 +4,9 @@ import { IsUUID, IsString, IsNotEmpty, IsEmail } from 'class-validator';
 @InputType()
 export class AcceptContractDataInputDto {
   @Field()
-  @IsUUID()
+  @IsString()
   @IsNotEmpty()
-  sessionId: string;
+  onboardingSessionId: string;
 
   @Field()
   @IsUUID()
@@ -40,9 +40,6 @@ export class GenerateOtpInputDto {
   @Field()
   @IsString()
   commerceName: string;
-
-  // TODO: pendiente por definir si se envia por email o sms desde el frontend
-  notificationChannel: string[];
 }
 
 @InputType()

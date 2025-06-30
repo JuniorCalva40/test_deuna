@@ -22,3 +22,24 @@ export class EstablishmentOutputDto {
   @Field()
   numberEstablishment: string;
 }
+
+@ObjectType('EstablishmentValidateCnbOutputDto')
+export class EstablishmentValidateCnbOutputDto {
+  @Field()
+  state: string;
+
+  @Field()
+  headquarters: string;
+
+  @Field()
+  fullAddress: string;
+
+  @Field()
+  establishmentType: string;
+
+  @Field()
+  numberEstablishment: string;
+
+  @Field()
+  commercialName: string;
+}

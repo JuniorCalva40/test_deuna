@@ -15,22 +15,26 @@ export default () => ({
   },
   services: {
     autServiceUrl:
-      process.env.AUTH_SERVICE_URL || 'http://deuna-auth.deuna.internal',
+      process.env.AUTH_SERVICE_URL || '',
     userServiceUrl:
-      process.env.USER_SERVICE_URL || 'http://deuna-user.deuna.internal',
+      process.env.USER_SERVICE_URL || '',
     anonymousAuthServiceUrl:
       process.env.ANONYMOUS_AUTH_SERVICE_URL ||
-      'http://deuna-anonymous-auth.deuna.internal',
+      '',
   },
   externalServices: {
     MSA_CO_ONBOARDING_STATUS_URL:
       process.env.MSA_CO_ONBOARDING_STATUS_URL ||
-      'http://msa-nb-on-boarding.default.svc.cluster.local',
+      '',
     MSA_NB_CONFIGURATION_URL:
       process.env.MSA_NB_CONFIGURATION_URL ||
-      'http://msa-nb-configuration.default.svc.cluster.local',
+      '',
     MSA_CO_AUTH_URL: process.env.MSA_CO_AUTH_URL,
     MSA_CO_COMMERCE_SERVICE_URL: process.env.MSA_CO_COMMERCE_SERVICE_URL,
+    MSA_NB_CNB_ORQ_SERVICE_URL:
+      process.env.MSA_NB_CNB_ORQ_SERVICE_URL || 'http://localhost:8085/api/v1',
+    MSA_NB_CNB_ACCOUNT_VALIDATION_URL:
+      process.env.MSA_NB_CNB_ACCOUNT_VALIDATION_URL || 'http://localhost:3001/api/v1',
   },
   typeServices: {
     MSA_CO_ONBOARDING_STATUS_SERVICE_TYPE:

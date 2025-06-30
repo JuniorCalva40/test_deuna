@@ -8,6 +8,4 @@ export class GenerateOtpInputDto {
   deviceName: string;
 
   commerceName: string;
-
-  notificationChannel: string[];
 }
