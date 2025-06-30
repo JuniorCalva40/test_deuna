@@ -1,0 +1,25 @@
+{
+  "name": "@deuna/",
+  "version": "1.0.0",
+  "description": "",
+  "main": "./dist/main.js",
+  "types": "./dist/main.d.ts",
+  "scripts": {
+    "build": "nest build",
+    "start": "nest start",
+    "test:ci": "jest --ci --config ./jest.config.js --detectOpenHandles --no-watchAll --runInBand"
+  },
+  "dependencies": {
+  },
+  "devDependencies": {
+    "jest": "^29.6.2",
+    "jest-junit": "^16.0.0",
+    "ts-jest": "^29.1.1"
+  },
+  "keywords": [],
+  "author": "DeUna",
+  "private": true,
+  "directories": {
+    "test": "test"
+  }
+}

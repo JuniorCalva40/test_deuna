@@ -1,0 +1,79 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:6.2-alpine
+    container_name: ${COMPOSE_PROJECT_NAME:-deuna-msa-nb-cnb-orq}-redis
+    platform: ${PLATFORM:-linux/x86_64}
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    command: >
+      sh -c "redis-server --appendonly yes --requirepass ${REDIS_AUTH:-asdfghjklqwertyuio}"
+    volumes:
+      - redis_data:/data
+    networks:
+      - orq-transaction-network
+    environment:
+      - REDIS_AUTH=${REDIS_AUTH:-asdfghjklqwertyuio}
+    healthcheck:
+      test: redis-cli -a ${REDIS_AUTH:-asdfghjklqwertyuio} ping | grep PONG
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.3.0
+    container_name: ${COMPOSE_PROJECT_NAME:-deuna-msa-nb-cnb-orq}-zookeeper
+    platform: ${PLATFORM:-linux/x86_64}
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+      ZOOKEEPER_INIT_LIMIT: 5
+      ZOOKEEPER_SYNC_LIMIT: 2
+    ports:
+      - "2181:2181"
+    networks:
+      - orq-transaction-network
+    healthcheck:
+      test: echo ruok | nc localhost 2181 || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  kafka:
+    image: confluentinc/cp-kafka:7.3.0
+    container_name: ${COMPOSE_PROJECT_NAME:-deuna-msa-nb-cnb-orq}-kafka
+    platform: ${PLATFORM:-linux/x86_64}
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    ports:
+      - "9091:9091"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9091,PLAINTEXT_INTERNAL://kafka:29092
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9091,PLAINTEXT_INTERNAL://0.0.0.0:29092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    networks:
+      - orq-transaction-network
+    healthcheck:
+      test: nc -z localhost 9092 || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+volumes:
+  redis_data:
+    name: ${COMPOSE_PROJECT_NAME:-deuna-msa-nb-cnb-orq}-redis-data
+
+networks:
+  orq-transaction-network:
+    name: ${COMPOSE_PROJECT_NAME:-deuna-msa-nb-orq-transaction}-network

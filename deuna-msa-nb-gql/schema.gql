@@ -1,0 +1,200 @@
+# ------------------------------------------------------
+# THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
+# ------------------------------------------------------
+
+input AcceptBillingInput {
+  sessionId: String!
+}
+
+type AcceptBillingResponse {
+  errors: [ErrorDetail!]
+  sessionId: String!
+  status: String!
+}
+
+input AcceptContractDataInputDto {
+  businessDeviceId: String!
+  deviceName: String!
+  sessionId: String!
+}
+
+type AcceptContractDataResponseDto {
+  email: String!
+  errors: [ErrorDetail!]
+  otpResponse: GenerateOtpRespDto!
+  requestId: String!
+  sessionId: String!
+  status: String!
+}
+
+input ConfirmDataInputDto {
+  establishment: EstablishmentInputDto!
+  sessionId: String!
+}
+
+type ConfirmDataResponseDto {
+  cnbClientId: String!
+  errors: [ErrorDetail!]
+  sessionId: String!
+  status: String!
+}
+
+type DataGenerateOtpRespDto {
+  message: String!
+  remainingResendAttempts: Float
+}
+
+type DataResponse {
+  cnbState: String!
+  errors: [ErrorDto!]
+  status: String!
+}
+
+type DataStateCnb {
+  startOnbCnb: StartOnbCnb!
+}
+
+type ErrorDetail {
+  code: String!
+  message: String!
+}
+
+type ErrorDto {
+  code: String!
+  message: String!
+}
+
+input EstablishmentInputDto {
+  fullAddress: String!
+  numberEstablishment: String!
+}
+
+type EstablishmentOutputDto {
+  fullAddress: String!
+  numberEstablishment: String!
+}
+
+type GenerateOtpRespDto {
+  expirationDate: String!
+  remainingResendAttempts: Float!
+}
+
+type Mutation {
+  acceptBilling(input: AcceptBillingInput!): AcceptBillingResponse!
+  acceptContract(input: AcceptContractDataInputDto!): AcceptContractDataResponseDto!
+  confirmData(input: ConfirmDataInputDto!): ConfirmDataResponseDto!
+  resendOtp(input: ResendOtpInput!): ResendOtpResponse!
+  signContract(input: SignContractInput!): SignContractResponse!
+  startOnboarding: StartOnboardingResponse!
+  uploadClientsFile(file: Upload!): UploadClientsFileResponse!
+  validateOtp(input: ValidateOtpInputDto!): ValidateOtpResponseDto!
+}
+
+type Query {
+  queryDocument(input: QueryDocumentInput!): QueryDocumentResponse!
+  queryOnboardingStatus(sessionId: String!): QueryOnboardingStatusDto!
+  validateCnbState: DataResponse!
+}
+
+type QueryDocumentData {
+  b64encoded: String!
+  presignedUrl: String!
+}
+
+input QueryDocumentInput {
+  templateName: String!
+}
+
+type QueryDocumentResponse {
+  data: QueryDocumentData!
+  errors: [ErrorDetail!]
+  message: String!
+  status: String!
+}
+
+type QueryOnboardingStatusDto {
+  data: [String!]!
+  errors: [ErrorDetail!]
+  requiredSteps: [String!]!
+  status: String!
+}
+
+input ResendOtpInput {
+  sessionId: String!
+}
+
+type ResendOtpResponse {
+  errors: [ErrorDetail!]
+  expirationDate: String
+  message: String!
+  remainingResendAttempts: Float
+  status: String!
+}
+
+input SignContractInput {
+  sessionId: String!
+}
+
+type SignContractResponse {
+  details: SignContractResponseDetails
+  errorCode: String
+  errors: [ErrorDetail!]
+  message: String!
+  status: String!
+}
+
+type SignContractResponseDetails {
+  clientStatusUpdateResult: String!
+  createContractDocumentResult: String!
+  errorMessage: String
+  generateContractHtmlResult: String!
+  getClientDataResult: String!
+  getOtpDataResult: String!
+  invoiceAccountResult: String!
+  remainingVerifyAttempts: String
+  sendContractEmailResult: String!
+  updateOnboardingStateResult: String!
+}
+
+type StartOnbCnb {
+  data: StartOnbCnbData!
+  status: String!
+}
+
+type StartOnbCnbData {
+  cnbClientId: String!
+  message: String!
+  ruc: Float!
+}
+
+type StartOnboardingResponse {
+  errors: [ErrorDetail!]
+  establishments: [EstablishmentOutputDto!]!
+  sessionId: String!
+  status: String!
+}
+
+"""The `Upload` scalar type represents a file upload."""
+scalar Upload
+
+type UploadClientsFileResponse {
+  errors: [ErrorDetail!]
+  message: String!
+  skippedRecords: [String!]!
+  status: String!
+  totalProcessed: Float!
+}
+
+input ValidateOtpInputDto {
+  businessDeviceId: String!
+  otp: String!
+  requestId: String!
+  sessionId: String!
+}
+
+type ValidateOtpResponseDto {
+  errors: [ErrorDetail!]
+  isVerifiedOtp: Boolean!
+  otpResponse: DataGenerateOtpRespDto!
+  status: String!
+}

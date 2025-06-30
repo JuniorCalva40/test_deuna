@@ -1,0 +1,1 @@
+export const MAMBU_CLIENT = 'MAMBU_CLIENT';

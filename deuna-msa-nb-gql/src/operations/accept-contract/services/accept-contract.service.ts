@@ -1,0 +1,166 @@
+import { Injectable, Inject, Logger } from '@nestjs/common';
+import { lastValueFrom, catchError } from 'rxjs';
+import {
+  AcceptContractDataResponseDto,
+  GenerateOtpRespDto,
+} from '../dto/accept-contract-response.dto';
+import {
+  AcceptContractDataInputDto,
+  GenerateOtpInputDto,
+} from '../dto/accept-contract-input.dto';
+import { IMsaCoOnboardingStatusService } from '../../../external-services/msa-co-onboarding-status/interfaces/msa-co-onboarding-status-service.interface';
+import { MSA_CO_ONBOARDING_STATE_SERVICE } from '../../../external-services/msa-co-onboarding-status/providers/msa-co-onboarding-status-provider';
+import { MSA_CO_AUTH_SERVICE } from '../../../external-services/msa-co-auth/providers/msa-co-auth.provider';
+import { IMsaCoAuthService } from '../../../external-services/msa-co-auth/interfaces/msa-co-auth-service.interface';
+import { GetStateOnboardingResponseDto } from 'src/operations/confirm-data/dto/confirm-data-response.dto';
+import { v4 as uuidv4 } from 'uuid';
+import { ErrorHandler } from '../../../utils/error-handler.util';
+import { maskEmail } from '../../../utils/email_masker.util';
+import { ErrorCodes } from '../../../common/constants/error-codes';
+
+@Injectable()
+export class AcceptContractService {
+  private readonly logger = new Logger(AcceptContractService.name);
+  private commerceName: string;
+
+  constructor(
+    @Inject(MSA_CO_ONBOARDING_STATE_SERVICE)
+    private readonly msaCoOnboardingStateService: IMsaCoOnboardingStatusService,
+    @Inject(MSA_CO_AUTH_SERVICE)
+    private readonly msaTlOtpService: IMsaCoAuthService,
+  ) {}
+
+  async startAcceptContract(
+    input: AcceptContractDataInputDto,
+    email: string,
+  ): Promise<AcceptContractDataResponseDto> {
+    try {
+      await this.getAndValidateOnboardingState(input);
+      const requestId = this.generateRequestId();
+      const otpResponse = await this.sendOtp(input, requestId, email);
+
+      if (!otpResponse) {
+        return this.handleError(
+          'Error sending OTP',
+          ErrorCodes.NOTIF_SEND_FAILED,
+        );
+      }
+
+      const bodyUpdateOnboardingState = {
+        requestId: requestId,
+        email: email,
+        deviceName: input.deviceName,
+        commerceName: this.commerceName,
+        notificationChannel: ['SMS', 'EMAIL'],
+        sessionId: input.sessionId,
+        businessDeviceId: input.businessDeviceId,
+      };
+
+      const bodyUpdateOnboardingStateWithStatus = {
+        ...bodyUpdateOnboardingState,
+        status: 'PENDING',
+      };
+
+      const updateOnboardingState = await lastValueFrom(
+        this.msaCoOnboardingStateService.setStepAcceptContract(
+          bodyUpdateOnboardingStateWithStatus,
+        ),
+      );
+
+      if (!updateOnboardingState) {
+        return this.handleError(
+          'Error updating onboarding state',
+          ErrorCodes.ONB_STATUS_INVALID,
+        );
+      }
+
+      const response: AcceptContractDataResponseDto = {
+        sessionId: input.sessionId,
+        requestId: requestId,
+        otpResponse: otpResponse,
+        email: maskEmail(email),
+        status: 'SUCCESS',
+      };
+
+      return response;
+    } catch (error) {
+      return this.handleError(error.message, ErrorCodes.SYS_ERROR_UNKNOWN);
+    }
+  }
+
+  private async getAndValidateOnboardingState(
+    input: AcceptContractDataInputDto,
+  ): Promise<void> {
+    const onboardingStateResponse = await lastValueFrom(
+      this.msaCoOnboardingStateService
+        .getOnboardingState(input.sessionId)
+        .pipe(
+          catchError((error) =>
+            this.handleError(error.message, ErrorCodes.ONB_STATUS_INVALID),
+          ),
+        ),
+    );
+
+    if (!onboardingStateResponse.data) {
+      return this.handleError(
+        'Invalid onboarding state: missing information for the session',
+        ErrorCodes.ONB_DATA_INCOMPLETE,
+      );
+    }
+
+    this.validateOnboardingState(onboardingStateResponse);
+  }
+
+  private generateRequestId(): string {
+    return uuidv4();
+  }
+
+  private async sendOtp(
+    data: AcceptContractDataInputDto,
+    requestId: string,
+    email: string,
+  ): Promise<GenerateOtpRespDto> {
+    const otpRequest: GenerateOtpInputDto = {
+      businessDeviceId: data.businessDeviceId,
+      requestId: requestId,
+      email: email,
+      deviceName: data.deviceName,
+      commerceName: this.commerceName,
+      notificationChannel: ['SMS', 'EMAIL'],
+    };
+
+    const otpResponse = await lastValueFrom(
+      this.msaTlOtpService
+        .generateOtp(otpRequest)
+        .pipe(
+          catchError((error) =>
+            this.handleError(error.message, ErrorCodes.NOTIF_SEND_FAILED),
+          ),
+        ),
+    );
+
+    return otpResponse;
+  }
+
+  private validateOnboardingState(
+    onboardingState: GetStateOnboardingResponseDto,
+  ): void {
+    const states = onboardingState.data;
+    const requiredSteps = ['start-onb-cnb', 'confirm-data', 'accept-billing'];
+
+    for (const step of requiredSteps) {
+      if (!states[step] || states[step].status !== 'SUCCESS') {
+        return this.handleError(
+          `Invalid onboarding state: the ${step} step has not been completed successfully`,
+          ErrorCodes.ONB_STEP_INVALID,
+        );
+      }
+    }
+    this.commerceName = onboardingState.data['start-onb-cnb'].data.fullName;
+  }
+
+  private handleError(message: string, errorCode: string): never {
+    this.logger.error(`Error: ${message}`);
+    return ErrorHandler.handleError(message, errorCode);
+  }
+}

@@ -1,0 +1,23 @@
+# NodeJS
+dist/
+node_modules/
+
+# Tests
+coverage/
+reports/
+junit.xml
+
+# Dotenv environment variable files
+.env*
+
+# Operating Systems
+*.DS_Store
+
+# IDEs and editors
+# Visual Studio Code
+.vscode/
+# IntelliJ IDEA
+.idea/
+
+#GitGuardian File
+.cache_ggshield

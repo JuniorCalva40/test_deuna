@@ -1,0 +1,36 @@
+---
+
+services:
+  app:
+    image: ${COMPOSE_PROJECT_NAME}:latest
+    container_name: nb-orq-transaction
+    working_dir: /app
+    command: /bin/ash -ci "npm run start:dev"
+    platform: ${PLATFORM}
+    ports:
+      - 3000:3000
+    environment:
+      - NODE_ENV=development
+      - CLOUD_SERVICE_PROVIDER=none
+      - AWS_REGION=us-east-1
+      - SERVICE_NAME=nb-orq-transaction
+      - SERVICE_PORT=3000
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/v1/service/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - ../:/app:rw
+      - backend-packages:/app/node_modules
+
+volumes:
+  redis_data:
+    name: ${COMPOSE_PROJECT_NAME}-redis-data
+
+networks:
+  orq-transaction-network:
+    name: ${COMPOSE_PROJECT_NAME}-network

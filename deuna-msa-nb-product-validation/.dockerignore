@@ -1,0 +1,36 @@
+# NodeJS
+dist/
+node_modules/
+
+# Tests
+coverage/
+reports/
+junit.xml
+
+# Dotenv environment variable files
+.env*
+*.env
+
+# Operating Systems
+*.DS_Store
+
+# IDEs and editors
+# Visual Studio Code
+.vscode/
+# IntelliJ IDEA
+.idea/
+
+# Common
+.git/
+.dockerignore
+.gitignore
+README.md
+Dockerfile
+
+# Project specific
+.cicd/
+.eslintignore
+.eslintrc.js
+.prettierrc
+jest.config.js
+sonar-project.properties

@@ -1,0 +1,26 @@
+parameters:
+  - name: CONTINUE_ON_VALIDATION_ERROR_IN_DEVELOPMENT
+    displayName: Continue on validation error (just in development)
+    type: boolean
+    default: False
+    values:
+      - False
+      - True
+
+trigger:
+  branches:
+    include:
+      - master
+      - feature/*
+
+resources:
+  repositories:
+    - repository: deuna-tpl-do-pipeline-library
+      type: git
+      name: cpr-devops/deuna-tpl-do-pipeline-library
+      ref: refs/tags/v6.0.0
+
+extends:
+  template: javascript/node/npm/init.yml@deuna-tpl-do-pipeline-library
+  parameters:
+    CONTINUE_ON_VALIDATION_ERROR_IN_DEVELOPMENT: ${{ parameters.CONTINUE_ON_VALIDATION_ERROR_IN_DEVELOPMENT }}

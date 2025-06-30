@@ -1,0 +1,30 @@
+parameters:
+  - name: ENVIRONMENT
+    displayName: Environment
+    type: string
+    default: default
+    values:
+      - dev
+      - qa
+      - prod
+      - default
+
+trigger:
+  tags:
+    include:
+      - av*
+      - bv*
+      - v*
+pr: none
+
+resources:
+  repositories:
+    - repository: deuna-tpl-do-pipeline-microservice
+      type: git
+      name: cpr-devops/deuna-tpl-do-pipeline-microservice
+      ref: refs/tags/v12.4.1
+
+extends:
+  template: javascript/nestjs/npm/cd.yml@deuna-tpl-do-pipeline-microservice
+  parameters:
+    ENVIRONMENT: ${{ parameters.ENVIRONMENT }}
